@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
   description TEXT DEFAULT '',
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   gender TEXT CHECK (gender IN ('hombre', 'mujer', 'unisex', 'niño', 'niña')),
   season TEXT CHECK (season IN ('primavera', 'verano', 'otoño', 'invierno', 'todas', 'primavera_verano', 'otoño_invierno', 'todo_el_año')),
   stock INTEGER DEFAULT 0,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -145,6 +147,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   shipping_status TEXT,
   shipping_date_report TIMESTAMPTZ,
   shipping_note TEXT,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -333,6 +336,8 @@ CREATE TABLE IF NOT EXISTS public.backup_config (
 
 
 -- 3. ÍNDICES
+CREATE INDEX IF NOT EXISTS idx_categories_deleted_at ON public.categories(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_products_deleted_at ON public.products(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_gender ON public.products(gender);
 CREATE INDEX IF NOT EXISTS idx_products_season ON public.products(season);
@@ -342,6 +347,7 @@ CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON public.product_image
 CREATE INDEX IF NOT EXISTS idx_orders_employee ON public.orders(employee_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer ON public.orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_deleted_at ON public.orders(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_tracking_code ON public.orders(tracking_code);
