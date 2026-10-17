@@ -729,6 +729,34 @@ export function POS() {
     try {
       setLoading(true);
 
+      // 0. Búsqueda ULTRA-PRECISA: Código de barra de PRENDA INDIVIDUAL (product_units)
+      try {
+        const { data: unitData } = await supabase
+          .from('product_units')
+          .select('*, product_sizes(*, products(*)), products(*)')
+          .eq('individual_barcode', scannedCode)
+          .eq('status', 'available')
+          .maybeSingle();
+
+        if (unitData) {
+          const uProduct = unitData.products || (unitData.product_sizes as any)?.products;
+          const uSize = unitData.product_sizes;
+          if (uProduct && !(uProduct as any).deleted_at) {
+            if (checkStock(uProduct, uSize, 1)) {
+              addItem(uProduct, uSize);
+              setBarcodeInput('');
+              toast.success(`${uProduct.name} ${uSize ? `(${uSize.size_name})` : ''} ${t('agregado')}`);
+              return;
+            } else {
+              setBarcodeInput('');
+              return;
+            }
+          }
+        }
+      } catch (unitErr) {
+        console.warn('Búsqueda por prenda individual falló o tabla en actualización:', unitErr);
+      }
+
       // 1. Busqueda PRIORITARIA: Código de barra de TALLA específica
       // Solo aceptar tallas cuyo producto padre esté en caché Y no esté eliminado
       let specificSize = sizes.find(s => {

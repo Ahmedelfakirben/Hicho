@@ -6,6 +6,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
+export interface IndividualUnitItem {
+  id: string;
+  size_id?: string;
+  size_name: string;
+  barcode: string;
+  unit_number?: number;
+}
+
 export interface LabelSizeItem {
   id: string;
   size_name: string;
@@ -26,7 +34,9 @@ interface BarcodeLabelModalProps {
     barcode?: string;
   };
   sizes: LabelSizeItem[];
-  onUpdateSizeBarcode?: (sizeId: string, barcode: string) => Promise<void>;
+  units?: IndividualUnitItem[];
+  onUpdateUnitBarcode?: (unitId: string, barcode: string) => Promise<void>;
+  initialSelectedUnitId?: string;
   initialSelectedSizeId?: string;
 }
 
@@ -35,41 +45,56 @@ export function BarcodeLabelModal({
   onClose,
   product,
   sizes,
-  onUpdateSizeBarcode,
+  units = [],
+  onUpdateUnitBarcode,
+  initialSelectedUnitId,
   initialSelectedSizeId,
 }: BarcodeLabelModalProps) {
   const { formatCurrency } = useCurrency();
   const { t } = useLanguage();
 
-  // Print quantities per size ID
+  // Print quantities: if units provided, keyed by unit.id; otherwise keyed by size.id
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(0);
+  const [selectedPreviewUnitId, setSelectedPreviewUnitId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('Linventory');
   const [labelSize, setLabelSize] = useState<'standard' | 'small' | 'large'>('standard');
-  const [generatingForSize, setGeneratingForSize] = useState<string | null>(null);
 
   const previewSvgRef = useRef<SVGSVGElement>(null);
 
-  // Initialize quantities based on stock
+  const hasIndividualUnits = units && units.length > 0;
+
+  // Initialize quantities based on units or sizes
   useEffect(() => {
     if (isOpen) {
       const initial: Record<string, number> = {};
-      sizes.forEach((s) => {
-        if (initialSelectedSizeId) {
-          // If a specific size was clicked, set that to stock (or 1) and others to 0
-          initial[s.id] = s.id === initialSelectedSizeId ? Math.max(1, s.stock || 1) : 0;
-        } else {
-          // Otherwise, set to current stock (minimum 1 if stock is 0 so they can print test)
-          initial[s.id] = s.stock > 0 ? s.stock : 1;
-        }
-      });
-      setQuantities(initial);
 
-      if (initialSelectedSizeId) {
-        const foundIdx = sizes.findIndex((s) => s.id === initialSelectedSizeId);
-        if (foundIdx >= 0) setSelectedPreviewIndex(foundIdx);
+      if (hasIndividualUnits) {
+        units.forEach((u) => {
+          if (initialSelectedUnitId) {
+            initial[u.id] = u.id === initialSelectedUnitId ? 1 : 0;
+          } else if (initialSelectedSizeId) {
+            initial[u.id] = u.size_id === initialSelectedSizeId ? 1 : 0;
+          } else {
+            // By default, print 1 label for each physical unit in stock
+            initial[u.id] = 1;
+          }
+        });
+        setQuantities(initial);
+
+        if (initialSelectedUnitId) {
+          setSelectedPreviewUnitId(initialSelectedUnitId);
+        } else {
+          setSelectedPreviewUnitId(units[0]?.id || null);
+        }
       } else {
-        setSelectedPreviewIndex(0);
+        sizes.forEach((s) => {
+          if (initialSelectedSizeId) {
+            initial[s.id] = s.id === initialSelectedSizeId ? Math.max(1, s.stock || 1) : 0;
+          } else {
+            initial[s.id] = s.stock > 0 ? s.stock : 1;
+          }
+        });
+        setQuantities(initial);
       }
 
       // Fetch company name
@@ -81,27 +106,39 @@ export function BarcodeLabelModal({
           if (data?.company_name) setCompanyName(data.company_name);
         });
     }
-  }, [isOpen, sizes, initialSelectedSizeId]);
+  }, [isOpen, sizes, units, initialSelectedUnitId, initialSelectedSizeId, hasIndividualUnits]);
 
   // Total labels to print
   const totalLabels = Object.values(quantities).reduce((a, b) => a + (b || 0), 0);
-
-  // Current preview item
-  const currentPreview = sizes[selectedPreviewIndex] || sizes[0];
 
   // Helper: Effective price
   const effectivePrice = (product.promo_price && product.promo_price > 0)
     ? product.promo_price
     : (product.base_price || 0);
 
-  const itemPrice = effectivePrice + (currentPreview?.price_modifier || 0);
+  // Determine current item to preview
+  let currentPreviewBarcode = 'SIN-CODIGO';
+  let currentPreviewSizeName = 'ST';
+
+  if (hasIndividualUnits) {
+    const selectedUnit = units.find((u) => u.id === selectedPreviewUnitId) || units[0];
+    if (selectedUnit) {
+      currentPreviewBarcode = selectedUnit.barcode || 'SIN-CODIGO';
+      currentPreviewSizeName = selectedUnit.size_name || 'ST';
+    }
+  } else {
+    const selectedSize = sizes[0];
+    if (selectedSize) {
+      currentPreviewBarcode = selectedSize.barcode || product.barcode || 'SIN-CODIGO';
+      currentPreviewSizeName = selectedSize.size_name || 'ST';
+    }
+  }
 
   // Render preview barcode
   useEffect(() => {
-    if (previewSvgRef.current && currentPreview) {
-      const code = currentPreview.barcode || product.barcode || 'SIN-CODIGO';
+    if (previewSvgRef.current) {
       try {
-        JsBarcode(previewSvgRef.current, code, {
+        JsBarcode(previewSvgRef.current, currentPreviewBarcode, {
           format: 'CODE128',
           width: 1.6,
           height: 38,
@@ -115,34 +152,13 @@ export function BarcodeLabelModal({
         console.error('Error rendering barcode in preview:', err);
       }
     }
-  }, [currentPreview, product.barcode]);
+  }, [currentPreviewBarcode]);
 
   // Generate unique barcode utility
   const generateBarcode = () => {
     const timePart = Date.now().toString().slice(-6);
     const randomPart = Math.floor(1000 + Math.random() * 9000);
     return `20${timePart}${randomPart}`;
-  };
-
-  const handleGenerateBarcodeForSize = async (sizeId: string) => {
-    setGeneratingForSize(sizeId);
-    try {
-      const newCode = generateBarcode();
-      if (onUpdateSizeBarcode) {
-        await onUpdateSizeBarcode(sizeId, newCode);
-      } else {
-        await supabase
-          .from('product_sizes')
-          .update({ barcode: newCode })
-          .eq('id', sizeId);
-      }
-      toast.success(t('Código generado: ') + newCode);
-    } catch (err) {
-      console.error('Error generating barcode:', err);
-      toast.error(t('Error al generar código'));
-    } finally {
-      setGeneratingForSize(null);
-    }
   };
 
   // Generate SVG string for printing
@@ -171,7 +187,7 @@ export function BarcodeLabelModal({
       return;
     }
 
-    // Build items to print
+    const priceFormatted = formatCurrency(effectivePrice);
     const labelsToPrint: Array<{
       name: string;
       size_name: string;
@@ -180,24 +196,45 @@ export function BarcodeLabelModal({
       barcodeText: string;
     }> = [];
 
-    sizes.forEach((s) => {
-      const count = quantities[s.id] || 0;
-      if (count > 0) {
-        const code = s.barcode || product.barcode || generateBarcode();
-        const svgStr = getBarcodeSvgString(code);
-        const priceFormatted = formatCurrency(effectivePrice + (s.price_modifier || 0));
+    if (hasIndividualUnits) {
+      // Print unique barcode for each physical unit
+      units.forEach((u) => {
+        const count = quantities[u.id] || 0;
+        if (count > 0) {
+          const code = u.barcode || generateBarcode();
+          const svgStr = getBarcodeSvgString(code);
 
-        for (let i = 0; i < count; i++) {
-          labelsToPrint.push({
-            name: product.name,
-            size_name: s.size_name,
-            price: priceFormatted,
-            barcodeSvg: svgStr,
-            barcodeText: code,
-          });
+          for (let i = 0; i < count; i++) {
+            labelsToPrint.push({
+              name: product.name,
+              size_name: u.size_name,
+              price: priceFormatted,
+              barcodeSvg: svgStr,
+              barcodeText: code,
+            });
+          }
         }
-      }
-    });
+      });
+    } else {
+      sizes.forEach((s) => {
+        const count = quantities[s.id] || 0;
+        if (count > 0) {
+          for (let i = 0; i < count; i++) {
+            // If more than 1 unit, generate distinct codes so every unit has its own barcode
+            const code = (i === 0 && s.barcode) ? s.barcode : generateBarcode();
+            const svgStr = getBarcodeSvgString(code);
+
+            labelsToPrint.push({
+              name: product.name,
+              size_name: s.size_name,
+              price: priceFormatted,
+              barcodeSvg: svgStr,
+              barcodeText: code,
+            });
+          }
+        }
+      });
+    }
 
     // Create invisible iframe for clean print
     const iframe = document.createElement('iframe');
@@ -215,7 +252,6 @@ export function BarcodeLabelModal({
       return;
     }
 
-    // Label dimensions according to preset
     const dim = labelSize === 'small'
       ? { width: '40mm', height: '25mm', fontSize: '9px', nameSize: '11px', priceSize: '12px' }
       : labelSize === 'large'
@@ -352,7 +388,7 @@ export function BarcodeLabelModal({
       }, 2000);
     }, 400);
 
-    toast.success(t(`Enviando ${totalLabels} etiquetas a la impresora...`));
+    toast.success(t(`Imprimiendo ${totalLabels} etiquetas con códigos individuales...`));
   };
 
   if (!isOpen) return null;
@@ -367,8 +403,10 @@ export function BarcodeLabelModal({
               <Printer className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-lg leading-tight">{t('Imprimir Etiquetas de Código de Barras')}</h3>
-              <p className="text-xs text-amber-100">{product.name} • {sizes.length} {t('tallas')}</p>
+              <h3 className="font-bold text-lg leading-tight">{t('Imprimir Etiquetas de Códigos de Barra')}</h3>
+              <p className="text-xs text-amber-100">
+                {product.name} • {hasIndividualUnits ? `${units.length} unidades individuales` : `${sizes.length} tallas`}
+              </p>
             </div>
           </div>
           <button
@@ -381,129 +419,137 @@ export function BarcodeLabelModal({
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Left: Size list and quantity selectors (7 cols) */}
+          {/* Left: Units / Sizes list with quantity selectors (7 cols) */}
           <div className="md:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                {t('Seleccionar Unidades / Tallas a Imprimir')}
+                {hasIndividualUnits ? t('Prendas / Unidades Físicas (1 código por unidad)') : t('Seleccionar Tallas a Imprimir')}
               </h4>
               <button
                 type="button"
                 onClick={() => {
-                  const allStock: Record<string, number> = {};
-                  sizes.forEach((s) => {
-                    allStock[s.id] = s.stock > 0 ? s.stock : 1;
-                  });
-                  setQuantities(allStock);
+                  const allOn: Record<string, number> = {};
+                  if (hasIndividualUnits) {
+                    units.forEach((u) => { allOn[u.id] = 1; });
+                  } else {
+                    sizes.forEach((s) => { allOn[s.id] = s.stock > 0 ? s.stock : 1; });
+                  }
+                  setQuantities(allOn);
                 }}
                 className="text-xs text-amber-600 hover:text-amber-700 font-semibold"
               >
-                {t('Restablecer al stock')}
+                {t('Seleccionar todas')}
               </button>
             </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {sizes.map((size, idx) => {
-                const count = quantities[size.id] || 0;
-                const isSelected = selectedPreviewIndex === idx;
-                const hasBarcode = Boolean(size.barcode);
+            <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+              {hasIndividualUnits ? (
+                units.map((unit, idx) => {
+                  const count = quantities[unit.id] || 0;
+                  const isSelected = selectedPreviewUnitId === unit.id;
 
-                return (
-                  <div
-                    key={size.id}
-                    onClick={() => setSelectedPreviewIndex(idx)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? 'border-amber-500 bg-amber-50/50 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-10 rounded-lg bg-gray-900 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
-                        {size.size_name}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-800">
-                            {formatCurrency(effectivePrice + (size.price_modifier || 0))}
-                          </span>
-                          <span className="text-[11px] text-gray-500">
-                            • Stock: <strong className="text-gray-700">{size.stock}</strong>
-                          </span>
+                  return (
+                    <div
+                      key={unit.id}
+                      onClick={() => setSelectedPreviewUnitId(unit.id)}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? 'border-amber-500 bg-amber-50/50 shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-10 rounded-lg bg-gray-900 text-white font-bold text-xs flex flex-col items-center justify-center flex-shrink-0 shadow-sm">
+                          <span>{unit.size_name}</span>
+                          <span className="text-[9px] text-amber-400 font-normal">#{unit.unit_number || (idx + 1)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {hasBarcode ? (
-                            <span className="text-[11px] font-mono text-gray-600 truncate max-w-[140px]">
-                              {size.barcode}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-800">
+                              {unit.size_name} • Unidad #{unit.unit_number || (idx + 1)}
                             </span>
-                          ) : (
-                            <div className="flex items-center gap-1 text-[11px] text-red-500 font-medium">
-                              <span>{t('Sin código')}</span>
-                              <button
-                                type="button"
-                                disabled={generatingForSize === size.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleGenerateBarcodeForSize(size.id);
-                                }}
-                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded text-[10px] font-semibold transition-colors"
-                              >
-                                {generatingForSize === size.id ? (
-                                  <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                                ) : (
-                                  <Sparkles className="w-2.5 h-2.5" />
-                                )}
-                                {t('Generar')}
-                              </button>
-                            </div>
-                          )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] font-mono font-bold text-amber-900 bg-amber-100/70 px-1.5 py-0.5 rounded truncate max-w-[170px]">
+                              {unit.barcode}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Quantity counter */}
-                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setQuantities((prev) => ({
-                            ...prev,
-                            [size.id]: Math.max(0, (prev[size.id] || 0) - 1),
-                          }))
-                        }
-                        className="w-7 h-7 rounded-md bg-white hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors shadow-xs"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <input
-                        type="number"
-                        min="0"
-                        value={count}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setQuantities((prev) => ({
-                            ...prev,
-                            [size.id]: Math.max(0, val),
-                          }));
-                        }}
-                        className="w-10 text-center font-bold text-xs bg-transparent border-0 focus:ring-0 p-0 text-gray-800"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setQuantities((prev) => ({
-                            ...prev,
-                            [size.id]: (prev[size.id] || 0) + 1,
-                          }))
-                        }
-                        className="w-7 h-7 rounded-md bg-white hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors shadow-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Quantity counter */}
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuantities((prev) => ({
+                              ...prev,
+                              [unit.id]: Math.max(0, (prev[unit.id] || 0) - 1),
+                            }))
+                          }
+                          className="w-7 h-7 rounded-md bg-white hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors shadow-xs"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          value={count}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setQuantities((prev) => ({
+                              ...prev,
+                              [unit.id]: Math.max(0, val),
+                            }));
+                          }}
+                          className="w-8 text-center font-bold text-xs bg-transparent border-0 focus:ring-0 p-0 text-gray-800"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuantities((prev) => ({
+                              ...prev,
+                              [unit.id]: (prev[unit.id] || 0) + 1,
+                            }))
+                          }
+                          className="w-7 h-7 rounded-md bg-white hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                sizes.map((size) => {
+                  const count = quantities[size.id] || 0;
+                  return (
+                    <div
+                      key={size.id}
+                      className="p-3 rounded-xl border border-gray-200 bg-white flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-10 rounded-lg bg-gray-900 text-white font-bold text-xs flex items-center justify-center">
+                          {size.size_name}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-800">{size.size_name}</div>
+                          <div className="text-[11px] text-gray-500 font-mono">{size.barcode || 'Sin código'}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                        <input
+                          type="number"
+                          min="0"
+                          value={count}
+                          onChange={(e) => setQuantities({ ...quantities, [size.id]: parseInt(e.target.value) || 0 })}
+                          className="w-10 text-center font-bold text-xs bg-transparent border-0"
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Label format selector */}
@@ -534,7 +580,7 @@ export function BarcodeLabelModal({
                   }`}
                 >
                   50 x 30 mm
-                  <span className="block text-[10px] text-gray-400 font-normal">Estándar (Recomendado)</span>
+                  <span className="block text-[10px] text-gray-400 font-normal">Estándar Ropa</span>
                 </button>
                 <button
                   type="button"
@@ -573,7 +619,7 @@ export function BarcodeLabelModal({
                     {companyName}
                   </span>
                   <span className="text-[9px] font-black bg-gray-900 text-white px-1.5 py-0.2 rounded">
-                    TALLA: {currentPreview?.size_name || 'ST'}
+                    TALLA: {currentPreviewSizeName}
                   </span>
                 </div>
 
@@ -590,13 +636,13 @@ export function BarcodeLabelModal({
                 {/* Footer / Price */}
                 <div className="w-full flex items-center justify-center border-t border-gray-100 pt-1">
                   <span className="text-base font-black text-gray-900 tracking-tight">
-                    {formatCurrency(itemPrice)}
+                    {formatCurrency(effectivePrice)}
                   </span>
                 </div>
               </div>
 
               <p className="text-[11px] text-gray-400 text-center mt-3">
-                {t('Compatible con cualquier impresora térmica de etiquetas (Zebra, Munbyn, Xprinter, etc.) y lectores láser/móvil.')}
+                {t('Cada etiqueta saldrá con su código de barra único para identificar individualmente cada prenda física.')}
               </p>
             </div>
 
@@ -604,7 +650,7 @@ export function BarcodeLabelModal({
             <div className="bg-amber-100/60 rounded-xl p-3 border border-amber-200/80 mt-4">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-amber-900 font-medium">{t('Total etiquetas a imprimir:')}</span>
-                <span className="text-base font-extrabold text-amber-950 px-2 py-0.5 bg-amber-200/80 rounded-md">
+                <span className="text-base font-extrabold text-amber-950 px-2.5 py-0.5 bg-amber-200/80 rounded-md">
                   {totalLabels}
                 </span>
               </div>

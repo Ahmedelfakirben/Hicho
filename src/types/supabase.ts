@@ -38,6 +38,18 @@ export interface ProductSize {
   created_at: string;
 }
 
+export interface ProductUnit {
+  id: string;
+  product_id: string;
+  size_id?: string | null;
+  individual_barcode: string;
+  status: 'available' | 'sold' | 'reserved';
+  sold_at?: string | null;
+  sold_in_order_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Order {
   id: string;
   employee_id: string;

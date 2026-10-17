@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, formatImageUrl } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Save, X, Package, Search, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Package, Search, Eye, Camera, Image as ImageIcon, Sparkles, ScanBarcode } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -133,6 +133,10 @@ export function ProductsManager() {
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const analyzeImageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const mainCameraInputRef = useRef<HTMLInputElement>(null);
+  const mainGalleryInputRef = useRef<HTMLInputElement>(null);
+  const galleryCameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [showUnitsModal, setShowUnitsModal] = useState(false);
   const [selectedProductForUnits, setSelectedProductForUnits] = useState<Product | null>(null);
@@ -1660,28 +1664,53 @@ export function ProductsManager() {
       </div>
 
       {showNewProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4">{isEditing ? t('Editar Producto') : t('Nuevo Producto')}</h3>
-            <div className="space-y-4">
-              {/* Bloque Imagen Principal (Movido arriba) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('Imagen Principal')}</label>
-                <div className="flex items-start gap-4">
-                  <div className="relative">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-fadeIn">
+          <div className="bg-white w-full h-[96vh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl rounded-t-3xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-gray-100">
+            {/* Header Sticky */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-white z-20 sticky top-0 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                  {isEditing ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
+                    {isEditing ? t('Editar Producto') : t('Nuevo Producto')}
+                  </h3>
+                  <p className="text-[11px] text-gray-500 hidden sm:block">
+                    {t('Completa la información para guardarlo en el inventario')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewProduct(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 pb-28 sm:pb-6">
+              {/* Bloque Imagen Principal */}
+              <div className="bg-gray-50/80 p-3.5 sm:p-4 rounded-2xl border border-gray-200/80">
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2.5">
+                  {t('Imagen Principal')}
+                </label>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                  <div className="relative flex-shrink-0">
                     {(newProductPreviewUrl || newProduct.image_url) ? (
                       <div className="relative">
                         <img
                           src={newProductPreviewUrl || newProduct.image_url}
                           alt={t('Vista previa')}
-                          className="h-24 w-24 object-cover rounded-lg border-2 border-gray-200"
+                          className="h-28 w-28 object-cover rounded-2xl border-2 border-amber-500/30 shadow-sm"
                           onError={(e) => {
-                            // Deshabilitada auto-reparacion
                             const img = e.currentTarget;
                             if (img.parentElement) {
                               img.style.display = 'none';
                               const fallback = document.createElement('div');
-                              fallback.className = "h-24 w-24 flex items-center justify-center bg-gray-100 text-gray-400 rounded border text-xs text-center p-1";
+                              fallback.className = "h-28 w-28 flex items-center justify-center bg-gray-100 text-gray-400 rounded-2xl border text-xs text-center p-2";
                               fallback.innerText = t("Error imagen");
                               img.parentElement.appendChild(fallback);
                             }
@@ -1693,43 +1722,90 @@ export function ProductsManager() {
                             setNewProductImage(null);
                             setNewProduct({ ...newProduct, image_url: '' });
                           }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm z-10"
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-md z-10 transition-transform active:scale-90"
                           title={t('Quitar imagen')}
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ) : (
-                      <div className="h-24 w-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
-                        <Package className="w-8 h-8 opacity-50" />
+                      <div className="h-28 w-28 bg-white rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 shadow-2xs">
+                        <Package className="w-8 h-8 opacity-40 mb-1" />
+                        <span className="text-[10px] text-gray-400 font-medium">{t('Sin imagen')}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex-1">
+                  <div className="flex-1 w-full space-y-2">
+                    <p className="text-xs text-gray-600">
+                      {t('Foto principal visible en catálogo, POS y ventas.')}
+                    </p>
+
+                    {/* Botones de acción móvil: Cámara y Galería */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => mainCameraInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="py-2.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                      >
+                        <Camera className="w-4 h-4 text-amber-600" />
+                        <span>{t('Hacer Foto')}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => mainGalleryInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="py-2.5 px-3 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors active:scale-95 shadow-2xs"
+                      >
+                        <ImageIcon className="w-4 h-4 text-gray-600" />
+                        <span>{t('Galería')}</span>
+                      </button>
+                    </div>
+
+                    {uploadingImage && (
+                      <div className="text-amber-700 text-xs font-medium flex items-center gap-1.5 animate-pulse pt-1">
+                        <LoadingSpinner size="sm" />
+                        <span>{t('Subiendo imagen...')}</span>
+                      </div>
+                    )}
+
+                    {/* Hidden inputs for camera & gallery */}
                     <input
                       type="file"
+                      ref={mainCameraInputRef}
+                      accept="image/*"
+                      capture="environment"
+                      onChange={e => setNewProductImage(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    <input
+                      type="file"
+                      ref={mainGalleryInputRef}
                       accept="image/*"
                       onChange={e => setNewProductImage(e.target.files?.[0] || null)}
-                      disabled={uploadingImage}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                      className="hidden"
                     />
-                    <p className="mt-2 text-xs text-gray-500">
-                      {t('Esta es la imagen principal. Aparecerá en listas y ventas.')}
-                    </p>
-                    {uploadingImage && <div className="text-amber-600 text-xs mt-1 animate-pulse">{t('Subiendo...')}</div>}
                   </div>
                 </div>
               </div>
 
               {/* Bloque Galería de Imágenes Adicionales */}
-              <div className="pt-4 border-t border-gray-100">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('products.gallery')}</label>
+              <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-200">
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    {t('products.gallery')}
+                  </label>
+                  <span className="text-[11px] text-gray-400">
+                    {existingGalleryImages.length + galleryPreviews.length} {t('fotos')}
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 mb-2">
                   {/* Imágenes Existentes (en edición) */}
                   {existingGalleryImages.map((img) => (
-                    <div key={img.id} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                    <div key={img.id} className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-2xs">
                       <img src={img.image_url} alt="Gallery" className="w-full h-full object-cover" />
                       <button
                         type="button"
@@ -1737,14 +1813,14 @@ export function ProductsManager() {
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm transition-colors"
                         title={t('products.gallery_delete')}
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
 
                   {/* Nuevas Imágenes (Previews) */}
                   {galleryPreviews.map((url, idx) => (
-                    <div key={`new-${idx}`} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                    <div key={`new-${idx}`} className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-2xs">
                       <img src={url} alt={`New Gallery ${idx}`} className="w-full h-full object-cover" />
                       <button
                         type="button"
@@ -1752,175 +1828,76 @@ export function ProductsManager() {
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm transition-colors"
                         title={t('products.gallery_remove_new')}
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
 
-                  {/* Botón Añadir */}
-                  <label className="aspect-square bg-gray-50 hover:bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 cursor-pointer transition-colors">
-                    <Plus className="w-6 h-6 mb-1 opacity-50" />
-                    <span className="text-xs">{t('products.gallery_add')}</span>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleGalleryFilesSelect}
-                      disabled={uploadingImage}
-                      className="hidden"
-                    />
-                  </label>
+                  {/* Botón Añadir a Galería */}
+                  <div className="aspect-square bg-amber-50/50 hover:bg-amber-100/50 rounded-xl border-2 border-dashed border-amber-300/80 flex flex-col items-center justify-center p-2 text-center transition-colors">
+                    <div className="flex gap-1.5 mb-1">
+                      <button
+                        type="button"
+                        onClick={() => galleryCameraInputRef.current?.click()}
+                        className="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 shadow-xs active:scale-95 transition-transform"
+                        title={t('Hacer foto para galería')}
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => galleryFileInputRef.current?.click()}
+                        className="p-1.5 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 shadow-xs active:scale-95 transition-transform"
+                        title={t('Elegir de galería')}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-amber-800 font-semibold leading-tight">{t('Añadir')}</span>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={galleryCameraInputRef}
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleGalleryFilesSelect}
+                    className="hidden"
+                  />
+                  <input
+                    type="file"
+                    ref={galleryFileInputRef}
+                    multiple
+                    accept="image/*"
+                    onChange={handleGalleryFilesSelect}
+                    className="hidden"
+                  />
                 </div>
-                <p className="text-xs text-gray-500">
-                  {t('products.gallery_help')}
-                </p>
               </div>
 
+              {/* Nombre del Producto */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('Nombre')}</label>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                  {t('Nombre del Producto')} <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={newProduct.name}
                   onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('Código de barras')}</label>
-                <div className="flex gap-2">
-                  <div className="space-y-2">
-
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newProduct.barcode || ''}
-                        onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder={t('Escanea o ingresa código')}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setScanTarget('main');
-                          setShowScanner(true);
-                        }}
-                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                        title={t('Escanear con cámara')}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleBarcodeSearch}
-                        disabled={!newProduct.barcode || searchingBarcode}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                      >
-                        {searchingBarcode ? (
-                          <>
-                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            {t('Buscando...')}
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            {t('Buscar')}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('Escanea el código o escribe y presiona "Buscar" para autocompletar')}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('Descripción')}</label>
-                <textarea
-                  value={newProduct.description}
-                  onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                  rows={3}
+                  placeholder="Ej: Camisa Slim Fit Lino"
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm font-medium shadow-2xs"
                 />
               </div>
 
-              {/* Nuevos Campos IA: Color, Material, Género, Temporada */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Marca')}</label>
-                  <input
-                    type="text"
-                    value={newProduct.brand || ''}
-                    onChange={e => setNewProduct({ ...newProduct, brand: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                    placeholder="Adidas, Nike..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Color')}</label>
-                  <input
-                    type="text"
-                    value={newProduct.color || ''}
-                    onChange={e => setNewProduct({ ...newProduct, color: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                    placeholder="Rojo, Azul..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Material')}</label>
-                  <input
-                    type="text"
-                    value={newProduct.material || ''}
-                    onChange={e => setNewProduct({ ...newProduct, material: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                    placeholder="Algodón, Poliéster..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Género')}</label>
-                  <select
-                    value={newProduct.gender || ''}
-                    onChange={e => setNewProduct({ ...newProduct, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="">{t('Seleccionar...')}</option>
-                    <option value="hombre">{t('Hombre')}</option>
-                    <option value="mujer">{t('Mujer')}</option>
-                    <option value="unisex">{t('Unisex')}</option>
-                    <option value="niño">{t('Niño')}</option>
-                    <option value="niña">{t('Niña')}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Temporada')}</label>
-                  <select
-                    value={newProduct.season || ''}
-                    onChange={e => setNewProduct({ ...newProduct, season: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="">{t('Seleccionar...')}</option>
-                    <option value="verano">{t('Verano')}</option>
-                    <option value="invierno">{t('Invierno')}</option>
-                    <option value="primavera">{t('Primavera')}</option>
-                    <option value="otoño">{t('Otoño')}</option>
-                    <option value="todas">{t('Todo el año')}</option>
-                  </select>
-                </div>
-              </div>
+              {/* Categoría */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('Categoría')}</label>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                  {t('Categoría')}
+                </label>
                 <select
                   value={newProduct.category_id}
                   onChange={e => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm bg-white shadow-2xs"
                 >
                   <option value="">{t('Seleccionar categoría')}</option>
                   {categories.map(cat => (
@@ -1928,36 +1905,41 @@ export function ProductsManager() {
                   ))}
                 </select>
               </div>
-              <div className={`grid ${!isCashier ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+
+              {/* Precios (Costo y Venta) */}
+              <div className={`grid ${!isCashier ? 'grid-cols-2' : 'grid-cols-1'} gap-3 sm:gap-4`}>
                 {!isCashier && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('Costo (Compra)')}</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                      {t('Costo (Compra)')}
+                    </label>
                     <input
                       type="number"
                       step="0.01"
                       value={newProduct.purchase_price || 0}
                       onChange={e => setNewProduct({ ...newProduct, purchase_price: parseFloat(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 title-hover"
+                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm shadow-2xs font-semibold"
                     />
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Precio (Venta)')}</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                    {t('Precio (Venta)')} <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     disabled={isCashier}
                     value={newProduct.base_price}
                     onChange={e => setNewProduct({ ...newProduct, base_price: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-75 title-hover"
-                    title={isCashier ? t('No tienes permisos para editar el precio') : ''}
+                    className="w-full px-3.5 py-2.5 border border-amber-300 bg-amber-50/30 rounded-xl focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-base sm:text-sm shadow-2xs font-extrabold text-amber-950"
                   />
                 </div>
               </div>
 
-              {/* Seccion Promocion (Solo Admins) */}
+              {/* Sección Promoción (Admin) */}
               {isAdmin && (
-                <div className="border-t border-gray-100 pt-3 mt-1">
+                <div className="bg-amber-50/60 p-3 sm:p-4 rounded-xl border border-amber-200">
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       type="checkbox"
@@ -1966,50 +1948,137 @@ export function ProductsManager() {
                       onChange={e => setNewProduct({ ...newProduct, is_promo: e.target.checked })}
                       className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
                     />
-                    <label htmlFor="is_promo" className="text-sm font-bold text-gray-800 flex items-center gap-1 cursor-pointer">
+                    <label htmlFor="is_promo" className="text-xs font-extrabold text-amber-950 flex items-center gap-1 cursor-pointer">
                       🔥 {t('products.promo_active')}
                     </label>
                   </div>
                   {newProduct.is_promo && (
-                    <div>
-                      <label className="block text-xs font-bold text-amber-800 mb-1">{t('products.promo_price')} (DH)</label>
+                    <div className="pt-1">
+                      <label className="block text-xs font-bold text-amber-900 mb-1">
+                        {t('products.promo_price')}
+                      </label>
                       <input
                         type="number"
                         step="0.01"
                         value={newProduct.promo_price || ''}
                         onChange={e => setNewProduct({ ...newProduct, promo_price: parseFloat(e.target.value) || 0 })}
-                        placeholder="Ej: 80"
-                        className="w-full px-3 py-2 border border-amber-300 bg-amber-50/50 rounded-lg focus:ring-2 focus:ring-amber-500 font-bold text-amber-900 text-sm"
+                        placeholder="Ej: 19.99"
+                        className="w-full px-3.5 py-2 border border-amber-300 bg-white rounded-xl focus:ring-2 focus:ring-amber-500 font-extrabold text-amber-900 text-base sm:text-sm"
                       />
                     </div>
                   )}
                 </div>
               )}
 
-
-              <div className="flex gap-2">
-                <button
-                  onClick={isEditing ? handleFullUpdate : handleCreateProduct}
-                  disabled={creatingProduct || uploadingImage}
-                  className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  {creatingProduct || uploadingImage ? (
-                    <>
-                      <LoadingSpinner size="sm" light />
-                      {uploadingImage ? t('Subiendo imagen...') : (isEditing ? t('Actualizando...') : t('Creando...'))}
-                    </>
-                  ) : (
-                    isEditing ? t('Actualizar') : t('Crear')
-                  )}
-                </button>
-                <button
-                  onClick={() => setShowNewProduct(false)}
-                  disabled={creatingProduct || uploadingImage}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 py-2 rounded-lg transition-colors"
-                >
-                  {t('Cancelar')}
-                </button>
+              {/* Atributos: Marca, Color, Material, Género, Temporada */}
+              <div className="pt-2 border-t border-gray-100">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
+                  {t('Detalles y Atributos')}
+                </label>
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('Marca')}</label>
+                    <input
+                      type="text"
+                      value={newProduct.brand || ''}
+                      onChange={e => setNewProduct({ ...newProduct, brand: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm"
+                      placeholder="Nike, Zara..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('Color')}</label>
+                    <input
+                      type="text"
+                      value={newProduct.color || ''}
+                      onChange={e => setNewProduct({ ...newProduct, color: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm"
+                      placeholder="Negro, Azul..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('Material')}</label>
+                    <input
+                      type="text"
+                      value={newProduct.material || ''}
+                      onChange={e => setNewProduct({ ...newProduct, material: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm"
+                      placeholder="Algodón, Lino..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('Género')}</label>
+                    <select
+                      value={newProduct.gender || ''}
+                      onChange={e => setNewProduct({ ...newProduct, gender: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm bg-white"
+                    >
+                      <option value="">{t('Seleccionar...')}</option>
+                      <option value="hombre">{t('Hombre')}</option>
+                      <option value="mujer">{t('Mujer')}</option>
+                      <option value="unisex">{t('Unisex')}</option>
+                      <option value="niño">{t('Niño')}</option>
+                      <option value="niña">{t('Niña')}</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs text-gray-600 mb-1">{t('Temporada')}</label>
+                    <select
+                      value={newProduct.season || ''}
+                      onChange={e => setNewProduct({ ...newProduct, season: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm bg-white"
+                    >
+                      <option value="">{t('Seleccionar...')}</option>
+                      <option value="verano">{t('Verano')}</option>
+                      <option value="invierno">{t('Invierno')}</option>
+                      <option value="primavera">{t('Primavera')}</option>
+                      <option value="otoño">{t('Otoño')}</option>
+                      <option value="todas">{t('Todo el año')}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+
+              {/* Descripción */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
+                  {t('Descripción')}
+                </label>
+                <textarea
+                  value={newProduct.description}
+                  onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 text-base sm:text-sm shadow-2xs"
+                  rows={2}
+                  placeholder={t('Detalles adicionales sobre el producto...')}
+                />
+              </div>
+            </div>
+
+            {/* Sticky Action Footer (Siempre visible en el móvil) */}
+            <div className="p-3.5 sm:px-6 sm:py-4 bg-white/95 backdrop-blur-xs border-t border-gray-200/80 flex items-center gap-2.5 sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+              <button
+                type="button"
+                onClick={() => setShowNewProduct(false)}
+                disabled={creatingProduct || uploadingImage}
+                className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-sm transition-colors flex-shrink-0 active:scale-95"
+              >
+                {t('Cancelar')}
+              </button>
+              <button
+                type="button"
+                onClick={isEditing ? handleFullUpdate : handleCreateProduct}
+                disabled={creatingProduct || uploadingImage || !newProduct.name.trim()}
+                className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl text-sm shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                {creatingProduct || uploadingImage ? (
+                  <>
+                    <LoadingSpinner size="sm" light />
+                    <span>{uploadingImage ? t('Subiendo imagen...') : (isEditing ? t('Actualizando...') : t('Creando...'))}</span>
+                  </>
+                ) : (
+                  <span>{isEditing ? t('Actualizar Producto') : t('Crear Producto')}</span>
+                )}
+              </button>
             </div>
           </div>
         </div>
