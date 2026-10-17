@@ -17,6 +17,12 @@ export const formatImageUrl = (url?: string | null): string => {
   } else if (cleanUrl.startsWith('http://') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
     cleanUrl = cleanUrl.replace('http://', 'https://');
   }
+  // Convertir rutas relativas de storage a URLs completas de Supabase
+  if (cleanUrl.startsWith('products/') || cleanUrl.startsWith('/products/')) {
+    cleanUrl = `https://hichousupabase.elfakir.com/storage/v1/object/public/product-images/${cleanUrl.replace(/^\//, '')}`;
+  } else if (cleanUrl.startsWith('product-images/')) {
+    cleanUrl = `https://hichousupabase.elfakir.com/storage/v1/object/public/${cleanUrl}`;
+  }
   return cleanUrl;
 };
 

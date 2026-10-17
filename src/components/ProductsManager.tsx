@@ -384,8 +384,8 @@ export function ProductsManager() {
       // Definir la base de la consulta
       const getBaseQuery = () => {
         return selectedSize !== 'all' 
-          ? supabase.from('products').select('*, product_sizes!inner(*)', { count: 'exact' })
-          : supabase.from('products').select('*, product_sizes(*)', { count: 'exact' });
+          ? supabase.from('products').select('*, product_sizes!inner(*), product_images(id, image_url, display_order)', { count: 'exact' })
+          : supabase.from('products').select('*, product_sizes(*), product_images(id, image_url, display_order)', { count: 'exact' });
       };
 
       let query = getBaseQuery();
@@ -443,15 +443,41 @@ export function ProductsManager() {
             fallbackQuery.or(orConditions);
           }
 
-          
           const { data: fData, count: fCount, error: fError } = await fallbackQuery.order(col, { ascending: isAsc }).range(from, to);
           if (fError) throw fError;
+
+          // Auto-asignar foto de galería si image_url está vacío
+          if (fData && fData.length > 0) {
+            fData.forEach((p: any) => {
+              if ((!p.image_url || !p.image_url.trim()) && p.product_images && p.product_images.length > 0) {
+                const firstImg = p.product_images[0]?.image_url;
+                if (firstImg) {
+                  p.image_url = firstImg;
+                  supabase.from('products').update({ image_url: firstImg }).eq('id', p.id).then();
+                }
+              }
+            });
+          }
+
           setProducts(fData || []);
           setTotalCount(fCount || 0);
         } else {
           throw error;
         }
       } else {
+        // Auto-asignar foto de galería si image_url está vacío
+        if (data && data.length > 0) {
+          data.forEach((p: any) => {
+            if ((!p.image_url || !p.image_url.trim()) && p.product_images && p.product_images.length > 0) {
+              const firstImg = p.product_images[0]?.image_url;
+              if (firstImg) {
+                p.image_url = firstImg;
+                supabase.from('products').update({ image_url: firstImg }).eq('id', p.id).then();
+              }
+            }
+          });
+        }
+
         setProducts(data || []);
         setTotalCount(count || 0);
       }
@@ -1592,6 +1618,21 @@ export function ProductsManager() {
     return product.product_sizes || [];
   };
 
+  const getProductDisplayImageUrl = (product: Product): string | null => {
+    if (product.image_url && product.image_url.trim()) {
+      return formatImageUrl(product.image_url);
+    }
+    const gallery = (product as any).product_images;
+    if (Array.isArray(gallery) && gallery.length > 0) {
+      const sorted = [...gallery].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      const firstValid = sorted.find(img => img.image_url && img.image_url.trim());
+      if (firstValid?.image_url) {
+        return formatImageUrl(firstValid.image_url);
+      }
+    }
+    return null;
+  };
+
   const Pagination = () => {
     const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
     if (totalPages <= 1) return null;
@@ -2154,22 +2195,25 @@ export function ProductsManager() {
                 onClick={() => handleViewGallery(product)}
                 title={t('products.gallery_view')}
               >
-                {product.image_url ? (
-                  <img
-                    src={formatImageUrl(product.image_url)}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-                      e.currentTarget.parentElement!.innerHTML = '<svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <Package className="w-8 h-8 opacity-50" />
-                  </div>
-                )}
+                {(() => {
+                  const imgUrl = getProductDisplayImageUrl(product);
+                  return imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                        e.currentTarget.parentElement!.innerHTML = '<svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <Package className="w-8 h-8 opacity-50" />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Info y Acciones */}
@@ -2337,22 +2381,25 @@ export function ProductsManager() {
                       onClick={() => handleViewGallery(product)}
                       title={t('products.gallery_view')}
                     >
-                      {product.image_url ? (
-                        <img
-                          src={formatImageUrl(product.image_url)}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-                            e.currentTarget.parentElement!.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <Package className="w-6 h-6 opacity-50" />
-                        </div>
-                      )}
+                      {(() => {
+                        const imgUrl = getProductDisplayImageUrl(product);
+                        return imgUrl ? (
+                          <img
+                            src={imgUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
+                              e.currentTarget.parentElement!.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <Package className="w-6 h-6 opacity-50" />
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </td>
