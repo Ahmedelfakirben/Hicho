@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 45 npm run build:*)",
+      "Bash(timeout 120 npm run build:*)",
+      "Bash(mv:*)",
+      "Bash(awk:*)",
+      "Bash(cat:*)",
+      "Bash(node update-theme.js:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
