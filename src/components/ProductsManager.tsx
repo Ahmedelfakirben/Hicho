@@ -2542,6 +2542,7 @@ export function ProductsManager() {
                 productId={selectedProductForUnits.id}
                 productName={selectedProductForUnits.name}
                 totalStock={selectedProductForUnits.stock || 0}
+                product={selectedProductForUnits as any}
               />
             </div>
 

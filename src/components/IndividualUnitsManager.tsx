@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import { Trash2, Plus, ScanBarcode, Lock } from 'lucide-react';
+import { Trash2, Plus, ScanBarcode, Lock, Sparkles, Printer, RefreshCw } from 'lucide-react';
 import { BarcodeScanner } from './BarcodeScanner';
+import { BarcodeLabelModal, LabelSizeItem } from './BarcodeLabelModal';
 
 interface ProductSize {
     id: string;
@@ -15,20 +16,45 @@ interface ProductSize {
     price_modifier: number;
 }
 
+interface ProductDetails {
+    id: string;
+    name: string;
+    base_price?: number;
+    promo_price?: number;
+    brand?: string;
+    barcode?: string;
+}
+
 interface IndividualUnitsManagerProps {
     productId: string;
     productName: string;
-    totalStock?: number; // Kept for interface compatibility but recalculated locally
-    onClose?: () => void; // Optional close callback
+    totalStock?: number; // Kept for interface compatibility
+    product?: ProductDetails;
+    onClose?: () => void;
 }
 
-export default function IndividualUnitsManager({ productId, productName }: IndividualUnitsManagerProps) {
+export default function IndividualUnitsManager({ productId, productName, product: initialProduct }: IndividualUnitsManagerProps) {
     const { t } = useLanguage();
     const { profile } = useAuth();
     const isCashier = profile?.role === 'cashier';
     const [sizes, setSizes] = useState<ProductSize[]>([]);
+    const [productDetails, setProductDetails] = useState<ProductDetails>(initialProduct || {
+        id: productId,
+        name: productName,
+    });
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
+
+    // Label modal state
+    const [showLabelModal, setShowLabelModal] = useState(false);
+    const [selectedSizeForPrint, setSelectedSizeForPrint] = useState<string | undefined>(undefined);
+
+    // Utility: Generate unique numeric 12-digit barcode
+    const generateBarcode = () => {
+        const timePart = Date.now().toString().slice(-6);
+        const randomPart = Math.floor(1000 + Math.random() * 9000);
+        return `20${timePart}${randomPart}`;
+    };
 
     // Auxiliar para registrar movimientos de stock
     const logStockMovement = async (pId: string, quantity: number, type: 'manual_add' | 'manual_deduct' | 'sale' | 'return' | 'correction', sizeId?: string, reason?: string) => {
@@ -57,22 +83,34 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
     const [scanTargetField, setScanTargetField] = useState<'new' | string>('new'); // 'new' or sizeId
 
     useEffect(() => {
-        fetchSizes();
+        fetchData();
     }, [productId]);
 
-    const fetchSizes = async () => {
+    const fetchData = async () => {
         try {
+            // Fetch product details for pricing & barcode
+            const { data: prodData } = await supabase
+                .from('products')
+                .select('id, name, base_price, promo_price, brand, barcode')
+                .eq('id', productId)
+                .single();
+
+            if (prodData) {
+                setProductDetails(prodData);
+            }
+
+            // Fetch sizes
             const { data, error } = await supabase
                 .from('product_sizes')
                 .select('*')
                 .eq('product_id', productId)
-                .order('size_name'); // Or custom order if available
+                .order('size_name');
 
             if (error) throw error;
             setSizes(data || []);
         } catch (error: any) {
-            console.error('Error fetching sizes:', error);
-            toast.error(t('Error al cargar tallas'));
+            console.error('Error fetching data:', error);
+            toast.error(t('Error al cargar datos del producto'));
         } finally {
             setLoading(false);
         }
@@ -99,13 +137,16 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                 return;
             }
 
+            // If no barcode provided, generate one automatically for this unit!
+            const finalBarcode = newSizeBarcode.trim() || generateBarcode();
+
             const { data, error } = await supabase
                 .from('product_sizes')
                 .insert({
                     product_id: productId,
                     size_name: newSizeName.trim(),
                     stock: stockVal,
-                    barcode: newSizeBarcode.trim() || null,
+                    barcode: finalBarcode,
                     price_modifier: 0
                 })
                 .select()
@@ -118,7 +159,7 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
             setNewSizeName('');
             setNewSizeStock('0');
             setNewSizeBarcode('');
-            toast.success(t('Talla agregada'));
+            toast.success(t('Talla agregada con código: ') + finalBarcode);
 
             // Registrar movimiento inicial
             if (stockVal > 0) {
@@ -181,7 +222,48 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
         } catch (err) {
             console.error('Error updating size:', err);
             toast.error(t('Error al actualizar'));
-            fetchSizes(); // Revert on error
+            fetchData(); // Revert on error
+        }
+    };
+
+    // Generate barcode for a specific size
+    const handleGenerateBarcodeForSize = async (sizeId: string) => {
+        const newCode = generateBarcode();
+        await handleUpdateSize(sizeId, { barcode: newCode });
+        toast.success(t('Código generado: ') + newCode);
+    };
+
+    // Generate barcodes for ALL sizes without barcode
+    const handleGenerateAllMissingBarcodes = async () => {
+        setProcessing(true);
+        try {
+            const missing = sizes.filter(s => !s.barcode || s.barcode.trim() === '');
+            if (missing.length === 0) {
+                toast.success(t('Todas las tallas ya tienen código de barras'));
+                return;
+            }
+
+            const updatedSizes = [...sizes];
+            for (const s of missing) {
+                const newCode = generateBarcode();
+                await supabase
+                    .from('product_sizes')
+                    .update({ barcode: newCode })
+                    .eq('id', s.id);
+                
+                const idx = updatedSizes.findIndex(item => item.id === s.id);
+                if (idx >= 0) {
+                    updatedSizes[idx] = { ...updatedSizes[idx], barcode: newCode };
+                }
+            }
+
+            setSizes(updatedSizes);
+            toast.success(t(`¡Generados ${missing.length} códigos de barras nuevos!`));
+        } catch (err) {
+            console.error('Error generating all barcodes:', err);
+            toast.error(t('Error al generar códigos'));
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -190,21 +272,52 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
         if (scanTargetField === 'new') {
             setNewSizeBarcode(code);
         } else {
-            // Update existing size
             handleUpdateSize(scanTargetField, { barcode: code });
         }
         toast.success(t('Código escaneado: ') + code);
     };
 
     if (loading) {
-        return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+        return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div></div>;
     }
+
+    const missingBarcodesCount = sizes.filter(s => !s.barcode || s.barcode.trim() === '').length;
 
     return (
         <div className="space-y-6">
-            <div className="bg-blue-50 p-4 rounded-xl mb-4">
-                <h3 className="font-bold text-blue-900">{productName}</h3>
-                <p className="text-sm text-blue-700">{t('Gestión Rápida de Stock y Códigos')}</p>
+            {/* Header banner with Actions */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/70 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h3 className="font-bold text-amber-950 text-base">{productName}</h3>
+                    <p className="text-xs text-amber-800">{t('Gestión Rápida de Stock y Códigos de Barras')}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    {missingBarcodesCount > 0 && (
+                        <button
+                            type="button"
+                            onClick={handleGenerateAllMissingBarcodes}
+                            disabled={processing}
+                            className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                            title={t('Generar códigos automáticamente para las unidades que no tienen')}
+                        >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            {t(`Generar ${missingBarcodesCount} Códigos`)}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSelectedSizeForPrint(undefined);
+                            setShowLabelModal(true);
+                        }}
+                        disabled={sizes.length === 0}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                        title={t('Imprimir etiquetas adhesivas con código de barras para las prendas')}
+                    >
+                        <Printer className="w-4 h-4" />
+                        {t('Imprimir Etiquetas')}
+                    </button>
+                </div>
             </div>
 
             {/* Cashier restriction banner */}
@@ -217,7 +330,10 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
 
             {/* Add New Size Form */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <h4 className="font-semibold mb-3 text-gray-800">{t('Agregar Nueva Talla')}</h4>
+                <h4 className="font-semibold mb-3 text-gray-800 text-sm flex items-center justify-between">
+                    <span>{t('Agregar Nueva Talla')}</span>
+                    <span className="text-[11px] text-gray-400 font-normal">{t('Si dejas el código vacío, se generará uno automáticamente')}</span>
+                </h4>
                 <div className="flex flex-col md:flex-row gap-3 items-end">
                     <div className="flex-1 w-full">
                         <label className="block text-xs font-medium text-gray-500 mb-1">{t('Nombre (ej: XL)')}</label>
@@ -225,7 +341,7 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                             type="text"
                             value={newSizeName}
                             onChange={e => setNewSizeName(e.target.value)}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 text-sm"
                             placeholder="XL"
                         />
                     </div>
@@ -236,37 +352,46 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                             value={isCashier ? '0' : newSizeStock}
                             disabled={isCashier}
                             onChange={e => setNewSizeStock(e.target.value)}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-75"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-75 text-sm"
                             title={isCashier ? t('No tienes permisos para modificar stock') : ''}
                             min="0"
                         />
                     </div>
                     <div className="flex-1 w-full relative">
                         <label className="block text-xs font-medium text-gray-500 mb-1">{t('Código de Barras')}</label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                             <input
                                 type="text"
                                 value={newSizeBarcode}
                                 onChange={e => setNewSizeBarcode(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                                placeholder={t('Opcional')}
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 font-mono text-sm"
+                                placeholder={t('Automático si está vacío')}
                             />
                             <button
+                                type="button"
+                                onClick={() => setNewSizeBarcode(generateBarcode())}
+                                className="p-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors flex-shrink-0"
+                                title={t('Generar código de barras')}
+                            >
+                                <Sparkles className="w-4 h-4 text-amber-600" />
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => {
                                     setScanTargetField('new');
                                     setShowScanner(true);
                                 }}
-                                className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600"
+                                className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600 flex-shrink-0"
                                 title={t('Escanear')}
                             >
-                                <ScanBarcode className="w-5 h-5" />
+                                <ScanBarcode className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                     <button
                         onClick={handleAddSize}
                         disabled={processing || !newSizeName.trim()}
-                        className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[42px]"
+                        className="w-full md:w-auto px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[42px] font-bold text-sm shadow-sm transition-all flex-shrink-0"
                     >
                         <Plus className="w-4 h-4" />
                         {t('Agregar')}
@@ -275,10 +400,12 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
             </div>
 
             {/* Sizes List */}
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs">
                 <div className="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
-                    <h4 className="font-semibold text-gray-700">{t('Tallas Existentes')}</h4>
-                    <span className="text-sm bg-gray-200 px-2 py-1 rounded-full text-gray-600">{sizes.length}</span>
+                    <h4 className="font-semibold text-gray-700 text-sm">{t('Tallas Existentes')}</h4>
+                    <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
+                        {sizes.length} {t('tallas')}
+                    </span>
                 </div>
 
                 {sizes.length === 0 ? (
@@ -286,9 +413,9 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                 ) : (
                     <div className="divide-y divide-gray-100">
                         {sizes.map(size => (
-                            <div key={size.id} className="p-4 flex flex-col md:flex-row items-center gap-4 hover:bg-gray-50 transition-colors">
+                            <div key={size.id} className="p-3.5 flex flex-col md:flex-row items-center gap-3 hover:bg-gray-50 transition-colors">
                                 {/* Name */}
-                                <div className="w-20 font-bold text-center md:text-left bg-gray-100 rounded px-2 py-1">
+                                <div className="w-24 font-bold text-center md:text-left bg-gray-100 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 shadow-2xs">
                                     {size.size_name}
                                 </div>
 
@@ -305,7 +432,7 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                                                 handleUpdateSize(size.id, { stock: val });
                                             }
                                         }}
-                                        className="w-20 px-2 py-1 border rounded text-center font-mono disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-75"
+                                        className="w-20 px-2 py-1 border rounded-lg text-center font-mono font-bold text-sm disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-75 focus:ring-2 focus:ring-amber-500"
                                         title={isCashier ? t('No tienes permisos para editar stock') : ''}
                                     />
                                 </div>
@@ -313,25 +440,42 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                                 {/* Barcode Control */}
                                 <div className="flex-1 w-full flex items-center gap-2">
                                     <span className="text-xs text-gray-500 uppercase font-bold whitespace-nowrap">{t('Código')}:</span>
-                                    <div className="flex-1 flex gap-1 items-center">
+                                    <div className="flex-1 flex gap-1.5 items-center">
                                         <input
                                             type="text"
-                                            defaultValue={size.barcode || ''}
+                                            value={size.barcode || ''}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setSizes(sizes.map(s => s.id === size.id ? { ...s, barcode: val } : s));
+                                            }}
                                             onBlur={(e) => {
                                                 const val = e.target.value.trim() || null;
-                                                if (val !== size.barcode) {
-                                                    handleUpdateSize(size.id, { barcode: val as string }); // cast to fix strict type if needed
-                                                }
+                                                handleUpdateSize(size.id, { barcode: val as string });
                                             }}
                                             placeholder={t('Sin código')}
-                                            className="w-full px-2 py-1 border rounded font-mono text-sm text-gray-600 focus:text-black"
+                                            className="w-full px-2.5 py-1 border rounded-lg font-mono text-xs text-gray-700 focus:text-black focus:ring-2 focus:ring-amber-500"
                                         />
+                                        
+                                        {/* Generate barcode button if missing */}
+                                        {!size.barcode && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleGenerateBarcodeForSize(size.id)}
+                                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold flex items-center gap-1 whitespace-nowrap transition-colors"
+                                                title={t('Generar código de barras')}
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                                {t('Generar')}
+                                            </button>
+                                        )}
+
                                         <button
+                                            type="button"
                                             onClick={() => {
                                                 setScanTargetField(size.id);
                                                 setShowScanner(true);
                                             }}
-                                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                            className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                                             title={t('Escanear')}
                                         >
                                             <ScanBarcode className="w-4 h-4" />
@@ -339,11 +483,24 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                                     </div>
                                 </div>
 
+                                {/* Individual Print Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedSizeForPrint(size.id);
+                                        setShowLabelModal(true);
+                                    }}
+                                    className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold"
+                                    title={t('Imprimir etiquetas para esta talla')}
+                                >
+                                    <Printer className="w-4 h-4 text-amber-600" />
+                                </button>
+
                                 {/* Delete — admin only */}
                                 {!isCashier && (
                                     <button
                                         onClick={() => handleDeleteSize(size.id)}
-                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         title={t('Eliminar')}
                                     >
                                         <Trash2 className="w-4 h-4" />
@@ -355,10 +512,25 @@ export default function IndividualUnitsManager({ productId, productName }: Indiv
                 )}
             </div>
 
+            {/* Scanner Modal */}
             {showScanner && (
                 <BarcodeScanner
                     onScanSuccess={handleScanSuccess}
                     onClose={() => setShowScanner(false)}
+                />
+            )}
+
+            {/* Barcode Label Print Modal */}
+            {showLabelModal && (
+                <BarcodeLabelModal
+                    isOpen={showLabelModal}
+                    onClose={() => setShowLabelModal(false)}
+                    product={productDetails}
+                    sizes={sizes}
+                    initialSelectedSizeId={selectedSizeForPrint}
+                    onUpdateSizeBarcode={async (sizeId, newBarcode) => {
+                        await handleUpdateSize(sizeId, { barcode: newBarcode });
+                    }}
                 />
             )}
         </div>
