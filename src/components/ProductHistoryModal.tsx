@@ -92,10 +92,6 @@ export default function ProductHistoryModal({ productId, productName, currentSto
         .from('product_sizes').select('stock, size_name').eq('product_id', productId);
       const hasSizesResult = Boolean(sizesData && sizesData.length > 0);
       setHasSizes(hasSizesResult);
-      const realStockCalc = hasSizesResult
-        ? sizesData!.reduce((sum, s) => sum + (s.stock || 0), 0)
-        : currentStock;
-      setRealStock(realStockCalc);
 
       const { data: profiles } = await supabase.from('employee_profiles').select('id, full_name');
       const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
@@ -104,6 +100,23 @@ export default function ProductHistoryModal({ productId, productName, currentSto
         .from('products')
         .select('created_at, created_by, validated_by, stock, product_sizes(size_name, stock)')
         .eq('id', productId).single();
+
+      const realStockCalc = hasSizesResult
+        ? sizesData!.reduce((sum, s) => sum + (s.stock || 0), 0)
+        : (productData?.stock !== undefined && productData?.stock !== null ? productData.stock : (currentStock || 0));
+      setRealStock(realStockCalc);
+
+      // Auto-reparar products.stock si no coincide con las tallas
+      if (hasSizesResult && productData && productData.stock !== realStockCalc) {
+        await supabase.from('products').update({ stock: realStockCalc }).eq('id', productId);
+      } else if (!hasSizesResult && productData && productData.stock !== 0) {
+        // No hay tallas registradas: si todas fueron eliminadas, el stock base debe ser 0
+        const { data: anyMovements } = await supabase.from('stock_movements').select('id').eq('product_id', productId).limit(1);
+        if (anyMovements && anyMovements.length > 0) {
+          await supabase.from('products').update({ stock: 0 }).eq('id', productId);
+          setRealStock(0);
+        }
+      }
 
       if (productData && !productError) {
         timeline.push({

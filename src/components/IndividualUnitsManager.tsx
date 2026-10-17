@@ -194,11 +194,28 @@ export default function IndividualUnitsManager({ productId, productName, product
             }
 
             setUnits(currentUnits);
+
+            // 5. Sincronizar stock total en la tabla maestra products
+            await syncProductTotalStock(currentSizes);
         } catch (error: any) {
             console.error('Error fetching units data:', error);
             toast.error(t('Error al cargar datos del producto'));
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Sincroniza el campo stock de la tabla products con la suma de las tallas actuales
+    const syncProductTotalStock = async (currentSizes: ProductSize[]) => {
+        const total = currentSizes.reduce((sum, s) => sum + (s.stock || 0), 0);
+        try {
+            const { error: pErr } = await supabase
+                .from('products')
+                .update({ stock: total })
+                .eq('id', productId);
+            if (pErr) console.warn('⚠️ Error updating products.stock:', pErr);
+        } catch (e) {
+            console.error('Error syncing products.stock:', e);
         }
     };
 
@@ -266,9 +283,13 @@ export default function IndividualUnitsManager({ productId, productName, product
                 }
             }
 
-            setSizes([...sizes, createdSize]);
+            const nextSizes = [...sizes, createdSize];
+            setSizes(nextSizes);
             setUnits([...units, ...insertedUnits]);
             setExpandedSizes(prev => ({ ...prev, [createdSize.id]: true }));
+
+            // Sincronizar stock en products
+            await syncProductTotalStock(nextSizes);
 
             setNewSizeName('');
             setNewSizeStock('1');
@@ -281,6 +302,83 @@ export default function IndividualUnitsManager({ productId, productName, product
         } catch (error: any) {
             console.error('Error adding size:', error);
             toast.error(t('Error al agregar talla: ') + error.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    // Actualizar directamente la cantidad de stock de una talla
+    const handleUpdateSizeStock = async (sizeId: string, newStock: number) => {
+        if (isCashier) {
+            toast.error(t('Solo administradores pueden modificar el stock'));
+            return;
+        }
+
+        if (isNaN(newStock) || newStock < 0) {
+            toast.error(t('Stock inválido'));
+            return;
+        }
+
+        const targetSize = sizes.find(s => s.id === sizeId);
+        if (!targetSize || targetSize.stock === newStock) return;
+
+        setProcessing(true);
+        try {
+            const diff = newStock - targetSize.stock;
+
+            // 1. Actualizar product_sizes
+            const { error: sErr } = await supabase
+                .from('product_sizes')
+                .update({ stock: newStock })
+                .eq('id', sizeId);
+
+            if (sErr) throw sErr;
+
+            // 2. Ajustar product_units
+            if (diff > 0) {
+                const newUnitsToInsert: any[] = [];
+                for (let i = 0; i < diff; i++) {
+                    newUnitsToInsert.push({
+                        product_id: productId,
+                        size_id: sizeId,
+                        individual_barcode: generateBarcode(),
+                        status: 'available'
+                    });
+                }
+                const { data: insertedU } = await supabase
+                    .from('product_units')
+                    .insert(newUnitsToInsert)
+                    .select();
+
+                if (insertedU) {
+                    setUnits(prev => [...prev, ...insertedU]);
+                }
+                await logStockMovement(productId, diff, 'manual_add', sizeId, `${t('Stock aumentado en talla')}: ${targetSize.size_name}`);
+            } else if (diff < 0) {
+                const sizeUnits = units.filter(u => u.size_id === sizeId);
+                const toRemove = sizeUnits.slice(diff);
+                const toRemoveIds = toRemove.map(u => u.id);
+
+                if (toRemoveIds.length > 0) {
+                    await supabase
+                        .from('product_units')
+                        .delete()
+                        .in('id', toRemoveIds);
+
+                    setUnits(prev => prev.filter(u => !toRemoveIds.includes(u.id)));
+                }
+                await logStockMovement(productId, diff, 'manual_deduct', sizeId, `${t('Stock reducido en talla')}: ${targetSize.size_name}`);
+            }
+
+            // 3. Actualizar estado local y sincronizar products.stock
+            const nextSizes = sizes.map(s => s.id === sizeId ? { ...s, stock: newStock } : s);
+            setSizes(nextSizes);
+            await syncProductTotalStock(nextSizes);
+
+            toast.success(t('Stock actualizado a ') + newStock);
+        } catch (err: any) {
+            console.error('Error updating size stock:', err);
+            toast.error(t('Error al actualizar stock: ') + err.message);
         } finally {
             setProcessing(false);
         }
@@ -321,9 +419,13 @@ export default function IndividualUnitsManager({ productId, productName, product
 
             await logStockMovement(productId, 1, 'manual_add', sizeId, t('Prenda individual agregada'));
 
-            setSizes(sizes.map(s => s.id === sizeId ? { ...s, stock: newStock } : s));
+            const nextSizes = sizes.map(s => s.id === sizeId ? { ...s, stock: newStock } : s);
+            setSizes(nextSizes);
             setUnits([...units, newUnit]);
             setExpandedSizes(prev => ({ ...prev, [sizeId]: true }));
+
+            // Sincronizar stock total
+            await syncProductTotalStock(nextSizes);
 
             toast.success(t('Nueva unidad creada con código: ') + newCode);
         } catch (err: any) {
@@ -382,6 +484,7 @@ export default function IndividualUnitsManager({ productId, productName, product
             if (delErr) throw delErr;
 
             const targetSize = sizes.find(s => s.id === sizeId);
+            let nextSizes = sizes;
             if (targetSize && targetSize.stock > 0) {
                 const newStock = Math.max(0, targetSize.stock - 1);
                 await supabase
@@ -390,10 +493,13 @@ export default function IndividualUnitsManager({ productId, productName, product
                     .eq('id', sizeId);
 
                 await logStockMovement(productId, -1, 'manual_deduct', sizeId, t('Prenda individual eliminada'));
-                setSizes(sizes.map(s => s.id === sizeId ? { ...s, stock: newStock } : s));
+                nextSizes = sizes.map(s => s.id === sizeId ? { ...s, stock: newStock } : s);
+                setSizes(nextSizes);
             }
 
             setUnits(units.filter(u => u.id !== unitId));
+            await syncProductTotalStock(nextSizes);
+
             toast.success(t('Prenda eliminada del inventario'));
         } catch (err: any) {
             console.error('Error deleting unit:', err);
@@ -491,9 +597,12 @@ export default function IndividualUnitsManager({ productId, productName, product
                 await logStockMovement(productId, -sizeToDelete.stock, 'manual_deduct', undefined, `${t('Talla eliminada')}: ${sizeToDelete.size_name}`);
             }
 
-            setSizes(sizes.filter(s => s.id !== sizeId));
+            const nextSizes = sizes.filter(s => s.id !== sizeId);
+            setSizes(nextSizes);
             setUnits(units.filter(u => u.size_id !== sizeId));
-            toast.success(t('Talla eliminada'));
+            await syncProductTotalStock(nextSizes);
+
+            toast.success(t('Talla eliminada y stock actualizado'));
         } catch (error) {
             console.error('Error deleting size:', error);
             toast.error(t('Error al eliminar talla'));
@@ -674,9 +783,36 @@ export default function IndividualUnitsManager({ productId, productName, product
                                         <div className="font-extrabold text-sm text-gray-900 bg-white border border-gray-200 px-3 py-1 rounded-xl shadow-2xs">
                                             {size.size_name}
                                         </div>
-                                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                                            {size.stock} {t('en stock')}
-                                        </span>
+                                        <div 
+                                            className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-xl px-2.5 py-1 shadow-2xs"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">{t('Stock')}:</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                defaultValue={size.stock}
+                                                key={`${size.id}-${size.stock}`}
+                                                disabled={isCashier}
+                                                onBlur={(e) => {
+                                                    const val = parseInt(e.target.value);
+                                                    if (!isNaN(val) && val !== size.stock) {
+                                                        handleUpdateSizeStock(size.id, val);
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const val = parseInt((e.target as HTMLInputElement).value);
+                                                        if (!isNaN(val) && val !== size.stock) {
+                                                            handleUpdateSizeStock(size.id, val);
+                                                            (e.target as HTMLInputElement).blur();
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-14 text-center font-black text-xs text-gray-900 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:cursor-not-allowed py-0.5"
+                                                title={t('Modificar cantidad de stock para esta talla')}
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Size Actions */}
