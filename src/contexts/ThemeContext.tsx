@@ -49,19 +49,20 @@ const themeColors = {
     accent: '#2dd4bf',         // teal-400
   },
   fashion: {
-    primary: '#f9a8d4',        // pink-300 (pastel suave)
-    primaryHover: '#f472b6',   // pink-400
-    primaryLight: '#fce7f3',   // pink-100
-    primaryDark: '#ec4899',    // pink-500
-    secondary: '#d8b4fe',      // purple-300 (lavanda suave)
-    secondaryHover: '#c084fc', // purple-400
-    accent: '#e9d5ff',         // purple-200
+    primary: '#f59e0b',        // amber-500
+    primaryHover: '#d97706',   // amber-600
+    primaryLight: '#fef3c7',   // amber-100
+    primaryDark: '#b45309',    // amber-700
+    secondary: '#f97316',      // orange-500
+    secondaryHover: '#ea580c', // orange-600
+    accent: '#fb923c',         // orange-400
   },
 };
 
 // Aplicar tema al documento
 const applyTheme = (theme: Theme) => {
-  const colors = themeColors[theme];
+  const effectiveTheme: Theme = theme === 'fashion' ? 'amber' : theme;
+  const colors = themeColors[effectiveTheme] || themeColors.amber;
   const root = document.documentElement;
 
   // Aplicar variables CSS
@@ -74,20 +75,24 @@ const applyTheme = (theme: Theme) => {
   root.style.setProperty('--color-accent', colors.accent);
 
   // Guardar el tema en el atributo data-theme
-  root.setAttribute('data-theme', theme);
+  root.setAttribute('data-theme', effectiveTheme);
 
-  console.log(`🎨 [THEME] Applied theme: ${theme}`);
+  console.log(`🎨 [THEME] Applied theme: ${effectiveTheme}`);
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [currentTheme, setCurrentTheme] = useState<Theme>('amber');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Aplicar inmediatamente en el primer render
+  useEffect(() => {
+    applyTheme('amber');
+  }, []);
+
   // Cargar tema desde la base de datos al iniciar
   useEffect(() => {
     const loadThemeFromDB = async () => {
       try {
-
         const { data, error } = await supabase
           .from('company_settings')
           .select('id, theme')
@@ -97,8 +102,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error('❌ [THEME] Error loading theme from DB:', error);
-          console.log('📝 [THEME] Error code:', error.code);
-          console.log('📝 [THEME] Error message:', error.message);
 
           // Si hay error, intentar crear un registro con tema por defecto
           console.log('🔨 [THEME] Attempting to create default company_settings...');
@@ -116,32 +119,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             console.error('❌ [THEME] Error creating default settings:', insertError);
             setCurrentTheme('amber');
             applyTheme('amber');
-            console.log('⚠️ [THEME] Using default theme: amber (without DB)');
           } else {
             console.log('✅ [THEME] Created default settings:', insertData);
             setCurrentTheme('amber');
             applyTheme('amber');
           }
         } else if (data && data.theme) {
-          console.log(`✅ [THEME] Loaded theme from DB: ${data.theme}`);
-          setCurrentTheme(data.theme as Theme);
-          applyTheme(data.theme as Theme);
+          const loadedTheme: Theme = data.theme === 'fashion' ? 'amber' : (data.theme as Theme);
+          console.log(`✅ [THEME] Loaded theme from DB: ${loadedTheme}`);
+          setCurrentTheme(loadedTheme);
+          applyTheme(loadedTheme);
         } else {
           // Si no hay tema configurado, actualizar con amber por defecto
-          console.log('⚠️ [THEME] No theme configured in DB');
-          console.log('🔨 [THEME] Updating to default theme: amber');
-
-          const { error: updateError } = await supabase
-            .from('company_settings')
-            .update({ theme: 'amber' })
-            .eq('id', data.id);
-
-          if (updateError) {
-            console.error('❌ [THEME] Error updating theme:', updateError);
-          } else {
-            console.log('✅ [THEME] Theme updated to amber in DB');
+          console.log('⚠️ [THEME] No theme configured in DB, updating to amber');
+          if (data?.id) {
+            await supabase
+              .from('company_settings')
+              .update({ theme: 'amber' })
+              .eq('id', data.id);
           }
-
           setCurrentTheme('amber');
           applyTheme('amber');
         }

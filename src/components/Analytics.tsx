@@ -2285,8 +2285,8 @@ export function Analytics() {
 
         <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 bg-pink-50 rounded-lg flex items-center justify-center">
-              <Activity className="w-5 h-5 text-pink-600" />
+            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+              <Activity className="w-5 h-5 text-amber-600" />
             </div>
             <span className="text-xs font-medium text-gray-500">{t('analytics.active')}</span>
           </div>

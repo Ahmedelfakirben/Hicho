@@ -1260,7 +1260,7 @@ export function POS() {
             value={productSearch}
             onChange={(e) => setProductSearch(e.target.value)}
             placeholder={t('Buscar productos...')}
-            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none transition-all"
+            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none transition-all"
           />
         </div>
         <button
@@ -1596,7 +1596,7 @@ export function POS() {
                 <button
                   onClick={() => setSelectedCategory('all')}
                   className={`flex-shrink-0 px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all duration-300 ${selectedCategory === 'all'
-                    ? 'gradient-primary text-white shadow-lg shadow-pink-200'
+                    ? 'gradient-primary text-white shadow-lg shadow-orange-200'
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                     }`}
                 >
@@ -1651,7 +1651,7 @@ export function POS() {
                 {/* Botón Izquierda */}
                 <button
                   onClick={() => categoryScrollRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-50 w-7 h-7 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-600 opacity-0 group-hover/nav:opacity-100 transition-opacity hover:bg-white hover:text-pink-600"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-50 w-7 h-7 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-600 opacity-0 group-hover/nav:opacity-100 transition-opacity hover:bg-white hover:text-amber-600"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1671,7 +1671,7 @@ export function POS() {
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
                       className={`flex-shrink-0 px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all duration-300 ${selectedCategory === cat.id
-                        ? 'gradient-primary text-white shadow-lg shadow-pink-200'
+                        ? 'gradient-primary text-white shadow-lg shadow-orange-200'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                         }`}
                     >
@@ -1683,7 +1683,7 @@ export function POS() {
                 {/* Botón Derecha */}
                 <button
                   onClick={() => categoryScrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-50 w-7 h-7 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-600 opacity-0 group-hover/nav:opacity-100 transition-opacity hover:bg-white hover:text-pink-600"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-50 w-7 h-7 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full flex items-center justify-center shadow-md text-gray-600 opacity-0 group-hover/nav:opacity-100 transition-opacity hover:bg-white hover:text-amber-600"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -2091,7 +2091,7 @@ export function POS() {
                     : 'text-gray-500 hover:text-gray-700 hover:bg-white bg-transparent border border-transparent'
                 }`}
               >
-                <ShoppingBag className={`w-4 h-4 ${saleChannel === 'store' ? 'text-white' : 'text-pink-500'}`} />
+                <ShoppingBag className={`w-4 h-4 ${saleChannel === 'store' ? 'text-white' : 'text-amber-500'}`} />
                 {t('pos.channel_store')}
               </button>
               <button
@@ -2102,7 +2102,7 @@ export function POS() {
                     : 'text-gray-500 hover:text-gray-700 hover:bg-white bg-transparent border border-transparent'
                 }`}
               >
-                <Smartphone className={`w-4 h-4 ${saleChannel === 'website' ? 'text-white' : 'text-pink-500'}`} />
+                <Smartphone className={`w-4 h-4 ${saleChannel === 'website' ? 'text-white' : 'text-amber-500'}`} />
                 {t('pos.channel_website')}
               </button>
             </div>
@@ -2146,8 +2146,8 @@ export function POS() {
           <div className="bg-white w-full max-h-[85vh] rounded-t-[2.5rem] p-6 shadow-2xl flex flex-col animate-slide-up">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                <div className="p-2 bg-pink-100 rounded-xl">
-                  <ShoppingCart className="w-6 h-6 text-pink-600" />
+                <div className="p-2 bg-amber-100 rounded-xl">
+                  <ShoppingCart className="w-6 h-6 text-amber-600" />
                 </div>
                 {t('pos.cart_modal_title')}
               </h2>
@@ -2195,10 +2195,10 @@ export function POS() {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-gray-900 truncate text-base">
                           {item.product.name}
-                          {item.size && <span className="text-pink-600 ml-1 font-semibold">({item.size.size_name})</span>}
+                          {item.size && <span className="text-amber-600 ml-1 font-semibold">({item.size.size_name})</span>}
                         </h4>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs font-bold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full">
+                          <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                             {formatCurrency(finalPrice)}
                           </span>
                           {item.discount > 0 && (
@@ -2212,7 +2212,7 @@ export function POS() {
                           <div className="flex items-center bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
                             <button 
                               onClick={(e) => { e.stopPropagation(); updateQuantity(cartIndex, -1); }}
-                              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-pink-600 active:scale-90 transition-all"
+                              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-amber-600 active:scale-90 transition-all"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
@@ -2224,7 +2224,7 @@ export function POS() {
                                   updateQuantity(cartIndex, 1);
                                 }
                               }}
-                              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-pink-600 active:scale-90 transition-all"
+                              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-amber-600 active:scale-90 transition-all"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
@@ -2447,7 +2447,7 @@ export function POS() {
                   value={paymentAmount}
                   disabled={!customerId}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full pl-16 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none font-bold text-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full pl-16 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none font-bold text-lg disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="0.00"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">

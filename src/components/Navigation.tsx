@@ -336,10 +336,10 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
         }}
         className={`flex items-center gap-3 w-full px-4 py-3 text-sm transition-all duration-200 rounded-xl mx-2 ${isActive
           ? 'gradient-primary text-white font-bold shadow-elegant scale-105'
-          : 'text-gray-700 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 font-medium hover:scale-105 hover:shadow-md'
+          : 'text-gray-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 font-medium hover:scale-105 hover:shadow-md'
           }`}
       >
-        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-pink-500'}`} />
+        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-500'}`} />
         <span>{item.label}</span>
         {isActive && (
           <div className="w-2 h-2 rounded-full bg-white ml-auto animate-pulse shadow-lg" />
@@ -913,7 +913,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:border-pink-300 transition-all shadow-sm hover:shadow-md group"
+                    className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:border-amber-300 transition-all shadow-sm hover:shadow-md group"
                   >
                     <div className="w-10 h-10 gradient-primary rounded-full flex items-center justify-center text-white font-bold group-hover:shadow-lg transition-shadow">
                       {profile.full_name?.charAt(0).toUpperCase()}
@@ -930,7 +930,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
                         <div className="px-4 py-3 border-b border-gray-200">
                           <p className="text-sm font-bold text-gray-900">{profile.full_name}</p>
                           <p className="text-xs text-gray-500">{user?.email}</p>
-                          <p className="text-xs text-pink-600 capitalize font-medium mt-1">{profile.role}</p>
+                          <p className="text-xs text-amber-600 capitalize font-medium mt-1">{profile.role}</p>
                         </div>
 
                         <div className="px-2 py-2 space-y-1">
@@ -1018,7 +1018,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
                                 : 'text-gray-700 bg-white border border-gray-50 hover:bg-gray-50'
                             }`}
                           >
-                            <Icon className={`w-6 h-6 ${isActive ? 'text-white' : 'text-pink-500'}`} />
+                            <Icon className={`w-6 h-6 ${isActive ? 'text-white' : 'text-amber-500'}`} />
                             <span>{item.label}</span>
                             {isActive && <div className="ml-auto w-2 h-2 bg-white rounded-full" />}
                           </button>

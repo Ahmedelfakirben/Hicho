@@ -335,7 +335,7 @@ export function UserManager() {
               <select
                 value={newEmployee.role}
                 onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value as any })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 required
               >
                 <option value="cashier">{t('Cajero')}</option>

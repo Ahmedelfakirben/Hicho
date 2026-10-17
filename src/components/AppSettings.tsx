@@ -104,14 +104,14 @@ export function AppSettings() {
               onClick={() => handleLanguageChange('es')}
               className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                 currentLanguage === 'es'
-                  ? 'border-pink-300 bg-pink-50 shadow-sm'
+                  ? 'border-amber-300 bg-amber-50 shadow-sm'
                   : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm'
               }`}
             >
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                currentLanguage === 'es' ? 'border-pink-500 bg-pink-100' : 'border-gray-300'
+                currentLanguage === 'es' ? 'border-amber-500 bg-amber-100' : 'border-gray-300'
               }`}>
-                {currentLanguage === 'es' && <div className="w-2.5 h-2.5 rounded-full bg-pink-500"></div>}
+                {currentLanguage === 'es' && <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>}
               </div>
               <div className="text-left flex-1">
                 <p className="font-bold text-base">{t('settings.language.es')}</p>
@@ -123,14 +123,14 @@ export function AppSettings() {
               onClick={() => handleLanguageChange('fr')}
               className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                 currentLanguage === 'fr'
-                  ? 'border-pink-300 bg-pink-50 shadow-sm'
+                  ? 'border-amber-300 bg-amber-50 shadow-sm'
                   : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm'
               }`}
             >
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                currentLanguage === 'fr' ? 'border-pink-500 bg-pink-100' : 'border-gray-300'
+                currentLanguage === 'fr' ? 'border-amber-500 bg-amber-100' : 'border-gray-300'
               }`}>
-                {currentLanguage === 'fr' && <div className="w-2.5 h-2.5 rounded-full bg-pink-500"></div>}
+                {currentLanguage === 'fr' && <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>}
               </div>
               <div className="text-left flex-1">
                 <p className="font-bold text-base">{t('settings.language.fr')}</p>
@@ -169,14 +169,14 @@ export function AppSettings() {
                 onClick={() => handleThemeChange(theme.value)}
                 className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                   currentTheme === theme.value
-                    ? 'border-pink-300 bg-pink-50 shadow-sm'
+                    ? 'border-amber-300 bg-amber-50 shadow-sm'
                     : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm'
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  currentTheme === theme.value ? 'border-pink-500 bg-pink-100' : 'border-gray-300'
+                  currentTheme === theme.value ? 'border-amber-500 bg-amber-100' : 'border-gray-300'
                 }`}>
-                  {currentTheme === theme.value && <div className="w-2.5 h-2.5 rounded-full bg-pink-500"></div>}
+                  {currentTheme === theme.value && <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>}
                 </div>
                 <div className={`w-8 h-8 rounded-lg ${theme.color}`}></div>
                 <div className="text-left flex-1">
@@ -217,14 +217,14 @@ export function AppSettings() {
                 onClick={() => handleCurrencyChange(currency)}
                 className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
                   currentCurrency.code === currency.code
-                    ? 'border-pink-300 bg-pink-50 shadow-sm'
+                    ? 'border-amber-300 bg-amber-50 shadow-sm'
                     : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm'
                 }`}
               >
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                  currentCurrency.code === currency.code ? 'border-pink-500 bg-pink-100' : 'border-gray-300'
+                  currentCurrency.code === currency.code ? 'border-amber-500 bg-amber-100' : 'border-gray-300'
                 }`}>
-                  {currentCurrency.code === currency.code && <div className="w-2 h-2 rounded-full bg-pink-500"></div>}
+                  {currentCurrency.code === currency.code && <div className="w-2 h-2 rounded-full bg-amber-500"></div>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

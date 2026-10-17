@@ -91,7 +91,7 @@ export function InstallPWA({ variant = 'button' }: { variant?: 'button' | 'menu-
                 onClick={handleInstallClick}
                 className="flex items-center gap-3 w-full px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium text-left"
             >
-                <Download className="w-4 h-4 text-pink-500" />
+                <Download className="w-4 h-4 text-amber-500" />
                 <span>Instalar App</span>
             </button>
         );
@@ -100,7 +100,7 @@ export function InstallPWA({ variant = 'button' }: { variant?: 'button' | 'menu-
     return (
         <button
             onClick={handleInstallClick}
-            className="flex items-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md transition-all transform hover:scale-105"
+            className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md transition-all transform hover:scale-105"
         >
             <Download className="w-4 h-4" />
             <span>Instalar App</span>

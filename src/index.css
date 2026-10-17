@@ -154,48 +154,9 @@
     background-image: linear-gradient(to right, #10b981, #14b8a6) !important;
   }
 
-  /* Tema Fashion (Pink/Purple Pastel) - Para tienda de ropa */
-  [data-theme="fashion"] .bg-amber-500,
-  [data-theme="fashion"] .from-amber-500,
-  [data-theme="fashion"] .to-amber-600 {
-    background-color: #f9a8d4 !important;
-  }
-
-  [data-theme="fashion"] .bg-amber-600,
-  [data-theme="fashion"] .hover\:bg-amber-600:hover {
-    background-color: #f472b6 !important;
-  }
-
-  [data-theme="fashion"] .bg-amber-100 {
-    background-color: #fce7f3 !important;
-  }
-
-  [data-theme="fashion"] .text-amber-600,
-  [data-theme="fashion"] .text-amber-700 {
-    color: #f472b6 !important;
-  }
-
-  [data-theme="fashion"] .border-amber-200,
-  [data-theme="fashion"] .border-amber-500 {
-    border-color: #f9a8d4 !important;
-  }
-
-  [data-theme="fashion"] .bg-orange-500,
-  [data-theme="fashion"] .from-orange-500 {
-    background-color: #d8b4fe !important;
-  }
-
-  [data-theme="fashion"] .bg-orange-600,
-  [data-theme="fashion"] .hover\:bg-orange-600:hover {
-    background-color: #c084fc !important;
-  }
-
-  [data-theme="fashion"] .bg-gradient-to-br {
-    background-image: linear-gradient(to bottom right, #f9a8d4, #f472b6) !important;
-  }
-
-  [data-theme="fashion"] .bg-gradient-to-r {
-    background-image: linear-gradient(to right, #f9a8d4, #d8b4fe) !important;
+  /* Tema Fashion - Alineado con Amber/Naranja para Linventory */
+  [data-theme="fashion"] {
+    /* Mantener coherencia con tema Amber/Naranja */
   }
 }
 

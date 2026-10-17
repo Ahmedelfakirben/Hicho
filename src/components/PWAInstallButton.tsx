@@ -74,7 +74,7 @@ export function PWAInstallButton() {
                 onClick={handleInstallClick}
                 className="group relative inline-flex items-center justify-center gap-3 px-6 py-3 rounded-2xl bg-white border-2 border-amber-200 shadow-md hover:shadow-xl hover:border-amber-400 transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0"
             >
-                <div className="p-2 bg-gradient-to-br from-amber-400 to-pink-500 rounded-xl text-white shadow-sm group-hover:scale-110 transition-transform">
+                <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl text-white shadow-sm group-hover:scale-110 transition-transform">
                     <Download className="w-5 h-5" />
                 </div>
                 <div className="text-left">

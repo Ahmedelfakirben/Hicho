@@ -17,7 +17,7 @@ export function LoadingSpinner({
 
   const colors = light
     ? ['bg-white/70', 'bg-white', 'bg-white/80']
-    : ['bg-pink-400', 'bg-pink-500', 'bg-pink-600'];
+    : ['bg-amber-400', 'bg-amber-500', 'bg-orange-500'];
 
   return (
     <div className={`flex items-center justify-center gap-1 ${className}`}>
