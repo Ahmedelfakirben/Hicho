@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   name TEXT NOT NULL,
   description TEXT DEFAULT '',
   base_price DECIMAL(10,2) NOT NULL,
+  purchase_price DECIMAL(10,2) DEFAULT 0,
   image_url TEXT DEFAULT '',
   available BOOLEAN DEFAULT true,
   brand TEXT,
@@ -38,8 +39,15 @@ CREATE TABLE IF NOT EXISTS public.products (
   gender TEXT CHECK (gender IN ('hombre', 'mujer', 'unisex', 'niño', 'niña')),
   season TEXT CHECK (season IN ('primavera', 'verano', 'otoño', 'invierno', 'todas', 'primavera_verano', 'otoño_invierno', 'todo_el_año')),
   stock INTEGER DEFAULT 0,
+  barcode TEXT,
+  needs_validation BOOLEAN DEFAULT false,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  validated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_promo BOOLEAN DEFAULT false,
+  promo_price DECIMAL(10,2),
   deleted_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Tallas de producto
@@ -338,6 +346,8 @@ CREATE TABLE IF NOT EXISTS public.backup_config (
 -- 3. ÍNDICES
 CREATE INDEX IF NOT EXISTS idx_categories_deleted_at ON public.categories(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_products_deleted_at ON public.products(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_products_barcode ON public.products(barcode);
+CREATE INDEX IF NOT EXISTS idx_products_created_by ON public.products(created_by);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category_id);
 CREATE INDEX IF NOT EXISTS idx_products_gender ON public.products(gender);
 CREATE INDEX IF NOT EXISTS idx_products_season ON public.products(season);

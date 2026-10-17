@@ -846,11 +846,29 @@ export function ProductsManager() {
       console.log('📝 [PRODUCTS] Final product data to insert:', JSON.stringify(productData, null, 2));
 
       // Create product first
-      const { data: created, error } = await supabase
+      let { data: created, error } = await supabase
         .from('products')
         .insert(productData)
         .select('id')
         .single();
+
+      // Fallback defensivo si la columna created_by o similar aún no existe en Supabase
+      if (error && (error.message?.includes('created_by') || error.message?.includes('needs_validation') || error.message?.includes('purchase_price') || error.message?.includes('is_promo'))) {
+        console.warn('⚠️ [PRODUCTS] Reintentando creación sin columnas opcionales no detectadas:', error.message);
+        const fallbackData = { ...productData };
+        delete fallbackData.created_by;
+        delete fallbackData.needs_validation;
+        delete fallbackData.purchase_price;
+        delete fallbackData.is_promo;
+        delete fallbackData.promo_price;
+        const retry = await supabase
+          .from('products')
+          .insert(fallbackData)
+          .select('id')
+          .single();
+        created = retry.data;
+        error = retry.error;
+      }
 
       if (created && productData.is_promo) {
         await logStockMovement(
