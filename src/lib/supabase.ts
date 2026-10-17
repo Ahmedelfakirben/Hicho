@@ -9,6 +9,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export const formatImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  let cleanUrl = url.trim();
+  if (cleanUrl.includes('supabasekong-ck8o0kswcg8wo8w0ko8occck.95.217.8.39.sslip.io')) {
+    cleanUrl = cleanUrl.replace('http://supabasekong-ck8o0kswcg8wo8w0ko8occck.95.217.8.39.sslip.io', 'https://hichousupabase.elfakir.com');
+  } else if (cleanUrl.startsWith('http://') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    cleanUrl = cleanUrl.replace('http://', 'https://');
+  }
+  return cleanUrl;
+};
+
 export interface Database {
   public: {
     Tables: {

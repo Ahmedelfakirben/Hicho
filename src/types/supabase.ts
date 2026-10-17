@@ -25,6 +25,7 @@ export interface Product {
   deleted_at?: string | null;
   is_promo?: boolean;
   promo_price?: number | null;
+  product_images?: { image_url: string; display_order?: number }[];
 }
 
 export interface ProductSize {

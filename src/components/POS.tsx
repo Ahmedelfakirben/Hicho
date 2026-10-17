@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, formatImageUrl } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart, getProductEffectivePrice } from '../contexts/CartContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -475,8 +475,8 @@ export function POS() {
       
       const getBaseQuery = () => {
         return selectedSize !== 'all'
-          ? supabase.from('products').select('*, product_sizes!inner(*)', { count: 'exact' })
-          : supabase.from('products').select('*, product_sizes(*)', { count: 'exact' });
+          ? supabase.from('products').select('*, product_sizes!inner(*), product_images(image_url, display_order)', { count: 'exact' })
+          : supabase.from('products').select('*, product_sizes(*), product_images(image_url, display_order)', { count: 'exact' });
       };
 
       let query = getBaseQuery();
@@ -1396,32 +1396,35 @@ export function POS() {
             return (
               <div key={product.id} className="bg-white rounded-lg p-3 shadow-sm border">
                 <div className="flex gap-3">
-                  {product.image_url && (
-                    <div
-                      className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer active:scale-95 transition-transform relative group"
-                      onClick={(e) => handleViewGallery(product, e)}
-                    >
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
-                        <Search className="w-5 h-5 text-white opacity-0 group-hover:opacity-100" />
+                  {(() => {
+                    const imgUrl = formatImageUrl(product.image_url || (product as any).product_images?.[0]?.image_url);
+                    return imgUrl ? (
+                      <div
+                        className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer active:scale-95 transition-transform relative group"
+                        onClick={(e) => handleViewGallery(product, e)}
+                      >
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+                          <Search className="w-5 h-5 text-white opacity-0 group-hover:opacity-100" />
+                        </div>
+                        <img
+                          src={imgUrl}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            const parent = img.parentElement;
+                            if (parent) {
+                              parent.innerHTML = '';
+                              const fallbackIcon = document.createElement('div');
+                              fallbackIcon.className = "w-full h-full flex items-center justify-center text-gray-300";
+                              fallbackIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>';
+                              parent.appendChild(fallbackIcon);
+                            }
+                          }}
+                        />
                       </div>
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          const parent = img.parentElement;
-                          if (parent) {
-                            parent.innerHTML = '';
-                            const fallbackIcon = document.createElement('div');
-                            fallbackIcon.className = "w-full h-full flex items-center justify-center text-gray-300";
-                            fallbackIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>';
-                            parent.appendChild(fallbackIcon);
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
+                    ) : null;
+                  })()}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
                     <p className="text-xs text-gray-500 truncate">{product.description}</p>
@@ -1719,22 +1722,25 @@ export function POS() {
                       className="relative h-48 bg-gray-50 flex-shrink-0 cursor-pointer overflow-hidden"
                       onClick={(e) => handleViewGallery(product, e)}
                     >
-                      {product.image_url ? (
-                        <>
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 z-10 flex items-center justify-center transition-colors">
-                            <Search className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 drop-shadow-md" />
+                      {(() => {
+                        const imgUrl = formatImageUrl(product.image_url || (product as any).product_images?.[0]?.image_url);
+                        return imgUrl ? (
+                          <>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 z-10 flex items-center justify-center transition-colors">
+                              <Search className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 drop-shadow-md" />
+                            </div>
+                            <img
+                              src={imgUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <ShoppingBag className="w-12 h-12" />
                           </div>
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                          <ShoppingBag className="w-12 h-12" />
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Sizes Badges - OVER IMAGE */}
                       <div className="absolute bottom-2 left-2 flex flex-wrap gap-1 z-20 max-w-[80%]">
@@ -2715,7 +2721,7 @@ export function POS() {
                         {/* Product Image */}
                         <div className="w-16 h-16 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-200">
                           {item.product_image ? (
-                            <img src={item.product_image} alt={item.product_name} className="w-full h-full object-cover" />
+                            <img src={formatImageUrl(item.product_image)} alt={item.product_name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-300">
                               <ShoppingBag className="w-6 h-6" />
@@ -3009,7 +3015,7 @@ export function POS() {
                                     <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
                                       {product?.image_url ? (
                                         <img
-                                          src={product.image_url}
+                                          src={formatImageUrl(product.image_url)}
                                           alt={product.name}
                                           className="w-11 h-11 object-cover rounded-lg border border-gray-200 flex-shrink-0"
                                         />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Share2, MessageCircle, Mail, Copy, Check, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { supabase } from '../lib/supabase';
+import { supabase, formatImageUrl } from '../lib/supabase';
 import { Product, ProductSize } from '../types/supabase';
 import { toast } from 'react-hot-toast';
 
@@ -21,10 +21,11 @@ export function ImageGalleryModal({ product, productSizes, galleryImages, onClos
 
     // Combine all images into one flat array of URLs
     const allImages: string[] = [];
-    if (product.image_url) allImages.push(product.image_url);
+    if (product.image_url) allImages.push(formatImageUrl(product.image_url));
     galleryImages.forEach(img => {
-        if (img.image_url && img.image_url !== product.image_url) {
-            allImages.push(img.image_url);
+        const cleaned = formatImageUrl(img.image_url);
+        if (cleaned && !allImages.includes(cleaned)) {
+            allImages.push(cleaned);
         }
     });
 

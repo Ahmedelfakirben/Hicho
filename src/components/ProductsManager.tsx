@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, formatImageUrl } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Save, X, Package, Search, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -972,6 +972,14 @@ export function ProductsManager() {
             } else {
               toast.success(t('products.gallery_uploaded') || t('Galería subida'), { id: 'gallery-upload' });
             }
+
+            // Si no se proporcionó una imagen principal explícita, usar la primera de la galería como image_url del producto
+            if (!newProductImage && validImages[0]?.image_url) {
+              await supabase
+                .from('products')
+                .update({ image_url: validImages[0].image_url })
+                .eq('id', created.id);
+            }
           }
         } catch (galleryErr) {
           console.error('Error uploading gallery:', galleryErr);
@@ -1310,6 +1318,14 @@ export function ProductsManager() {
               console.error('Insert error for gallery edit:', insertError);
             } else {
               toast.success(t('products.gallery_updated'), { id: 'gallery-update' });
+            }
+
+            // Si el producto no tiene imagen principal asignada, asignar la primera imagen subida
+            if (!newProductImage && (!editingProduct?.image_url || editingProduct.image_url.trim() === '') && validImages[0]?.image_url) {
+              await supabase
+                .from('products')
+                .update({ image_url: validImages[0].image_url })
+                .eq('id', editingId);
             }
           }
         } catch (galleryErr) {
@@ -2071,7 +2087,7 @@ export function ProductsManager() {
               >
                 {product.image_url ? (
                   <img
-                    src={product.image_url}
+                    src={formatImageUrl(product.image_url)}
                     alt={product.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -2254,7 +2270,7 @@ export function ProductsManager() {
                     >
                       {product.image_url ? (
                         <img
-                          src={product.image_url}
+                          src={formatImageUrl(product.image_url)}
                           alt={product.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
