@@ -96,7 +96,7 @@ export function UserManager() {
 
       if (profileError) throw profileError;
 
-      toast.success(t('Empleado creado exitosamente. Si la confirmación por email está habilitada, el usuario debe confirmar su correo.'));
+      toast.success(t('Usuario creado exitosamente. Ya puede iniciar sesión directamente.'));
       setShowForm(false);
       setNewEmployee({
         email: '',

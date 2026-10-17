@@ -706,6 +706,29 @@ INSERT INTO public.role_permissions (role, section, page_id, can_access, can_con
 ON CONFLICT (role, section, page_id) DO NOTHING;
 
 
+-- 9. AUTO-CONFIRMAR CORREO PARA TODOS LOS USUARIOS (LOGIN SIN CONFIRMACIÓN)
+CREATE OR REPLACE FUNCTION public.auto_confirm_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.email_confirmed_at IS NULL THEN
+    NEW.email_confirmed_at := now();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_auto_confirm ON auth.users;
+CREATE TRIGGER on_auth_user_auto_confirm
+  BEFORE INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_confirm_new_user();
+
+-- Confirmar usuarios existentes
+UPDATE auth.users
+SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+WHERE email_confirmed_at IS NULL;
+
+
 -- ==============================================================================
 -- PASO FINAL: CREAR EL USUARIO ADMINISTRADOR EN SUPABASE
 -- ==============================================================================
