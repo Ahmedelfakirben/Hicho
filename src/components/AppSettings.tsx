@@ -43,8 +43,8 @@ export function AppSettings() {
   };
 
   const themeOptions = [
-    { value: 'fashion' as Theme, label: 'Tema Fashion (Recomendado)', color: 'bg-pink-300', description: 'Rosa pastel suave - Tienda de ropa' },
-    { value: 'amber' as Theme, label: 'Tema Ámbar', color: 'bg-amber-500', description: 'Cálido y acogedor' },
+    { value: 'amber' as Theme, label: 'Tema Naranja / Ámbar (Recomendado)', color: 'bg-amber-500', description: 'Naranja cálido y enérgico - Identidad Linventory' },
+    { value: 'fashion' as Theme, label: 'Tema Fashion', color: 'bg-pink-300', description: 'Rosa pastel suave' },
     { value: 'dark' as Theme, label: 'Tema Oscuro', color: 'bg-gray-700', description: 'Elegante y profesional' },
     { value: 'blue' as Theme, label: 'Tema Azul', color: 'bg-blue-500', description: 'Fresco y confiable' },
     { value: 'green' as Theme, label: 'Tema Verde', color: 'bg-emerald-500', description: 'Natural y tranquilo' },

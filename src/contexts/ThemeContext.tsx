@@ -80,7 +80,7 @@ const applyTheme = (theme: Theme) => {
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [currentTheme, setCurrentTheme] = useState<Theme>('fashion');
+  const [currentTheme, setCurrentTheme] = useState<Theme>('amber');
   const [isLoading, setIsLoading] = useState(true);
 
   // Cargar tema desde la base de datos al iniciar
@@ -105,8 +105,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           const { data: insertData, error: insertError } = await supabase
             .from('company_settings')
             .insert({
-              company_name: 'LIN-Fashion',
-              theme: 'fashion',
+              company_name: 'Linventory',
+              theme: 'amber',
               language: 'es'
             })
             .select()
@@ -114,41 +114,41 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
           if (insertError) {
             console.error('❌ [THEME] Error creating default settings:', insertError);
-            setCurrentTheme('fashion');
-            applyTheme('fashion');
-            console.log('⚠️ [THEME] Using default theme: fashion (without DB)');
+            setCurrentTheme('amber');
+            applyTheme('amber');
+            console.log('⚠️ [THEME] Using default theme: amber (without DB)');
           } else {
             console.log('✅ [THEME] Created default settings:', insertData);
-            setCurrentTheme('fashion');
-            applyTheme('fashion');
+            setCurrentTheme('amber');
+            applyTheme('amber');
           }
         } else if (data && data.theme) {
           console.log(`✅ [THEME] Loaded theme from DB: ${data.theme}`);
           setCurrentTheme(data.theme as Theme);
           applyTheme(data.theme as Theme);
         } else {
-          // Si no hay tema configurado, actualizar con fashion por defecto
+          // Si no hay tema configurado, actualizar con amber por defecto
           console.log('⚠️ [THEME] No theme configured in DB');
-          console.log('🔨 [THEME] Updating to default theme: fashion');
+          console.log('🔨 [THEME] Updating to default theme: amber');
 
           const { error: updateError } = await supabase
             .from('company_settings')
-            .update({ theme: 'fashion' })
+            .update({ theme: 'amber' })
             .eq('id', data.id);
 
           if (updateError) {
             console.error('❌ [THEME] Error updating theme:', updateError);
           } else {
-            console.log('✅ [THEME] Theme updated to fashion in DB');
+            console.log('✅ [THEME] Theme updated to amber in DB');
           }
 
-          setCurrentTheme('fashion');
-          applyTheme('fashion');
+          setCurrentTheme('amber');
+          applyTheme('amber');
         }
       } catch (error) {
         console.error('💥 [THEME] Unexpected error loading theme:', error);
-        setCurrentTheme('fashion');
-        applyTheme('fashion');
+        setCurrentTheme('amber');
+        applyTheme('amber');
       } finally {
         setIsLoading(false);
       }

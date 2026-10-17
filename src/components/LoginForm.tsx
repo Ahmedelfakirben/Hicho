@@ -80,11 +80,11 @@ export function LoginForm() {
 
       <div className="glass rounded-3xl shadow-elegant w-full max-w-md p-10 relative z-10 animate-fadeIn border-2 border-white/40">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-48 h-48 rounded-3xl mb-6 shadow-elegant transform hover:scale-105 transition-all duration-300 hover:shadow-elegant-hover animate-float overflow-hidden border-4 border-white">
-            <img src="/Shopingbylina.jpg" alt="Logo" className="w-full h-full object-contain" />
+          <div className="inline-flex items-center justify-center w-48 h-48 rounded-3xl mb-6 shadow-elegant transform hover:scale-105 transition-all duration-300 hover:shadow-elegant-hover animate-float overflow-hidden border-4 border-white bg-white/80">
+            <img src="/logo.png" alt="Logo Linventory" className="w-full h-full object-contain p-2" />
           </div>
           <h1 className="text-4xl font-black text-gradient-vibrant mb-3 tracking-tight">
-            Shopping by Lina
+            Linventory
           </h1>
           <p className="text-gray-600 font-semibold text-lg">{t('Sistema de Gestión')}</p>
           <div className="mt-3 h-1 w-24 mx-auto gradient-primary rounded-full"></div>
@@ -106,8 +106,8 @@ export function LoginForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-5 py-3.5 border-2 border-gray-200 rounded-2xl focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all duration-200 outline-none bg-white shadow-sm hover:shadow-md hover:border-gray-300"
-              placeholder={t('empleado@cafeteria.com')}
+              className="w-full px-5 py-3.5 border-2 border-gray-200 rounded-2xl focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 outline-none bg-white shadow-sm hover:shadow-md hover:border-gray-300"
+              placeholder={t('empleado@empresa.com')}
               required
               autoComplete="email"
               autoCapitalize="none"
@@ -126,7 +126,7 @@ export function LoginForm() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-5 py-3.5 pr-14 border-2 border-gray-200 rounded-2xl focus:border-pink-400 focus:ring-4 focus:ring-pink-100 transition-all duration-200 outline-none bg-white shadow-sm hover:shadow-md hover:border-gray-300"
+                className="w-full px-5 py-3.5 pr-14 border-2 border-gray-200 rounded-2xl focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 outline-none bg-white shadow-sm hover:shadow-md hover:border-gray-300"
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
@@ -136,7 +136,7 @@ export function LoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-pink-500 transition-colors p-2 rounded-xl hover:bg-pink-50"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors p-2 rounded-xl hover:bg-orange-50"
                 aria-label={showPassword ? t("Ocultar contraseña") : t("Mostrar contraseña")}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -147,7 +147,7 @@ export function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full gradient-primary hover:gradient-primary-hover text-white font-bold py-4 px-6 rounded-2xl shadow-elegant hover:shadow-elegant-hover transform hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none focus:ring-4 focus:ring-pink-200 relative overflow-hidden group"
+            className="w-full gradient-primary hover:gradient-primary-hover text-white font-bold py-4 px-6 rounded-2xl shadow-elegant hover:shadow-elegant-hover transform hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none focus:ring-4 focus:ring-orange-200 relative overflow-hidden group"
           >
             <span className="relative z-10">
               {loading ? (

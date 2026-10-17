@@ -271,11 +271,11 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
 -- Ajustes de la empresa
 CREATE TABLE IF NOT EXISTS public.company_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_name VARCHAR(255) NOT NULL DEFAULT 'LIN-Fashion POS',
+  company_name VARCHAR(255) NOT NULL DEFAULT 'Linventory',
   address TEXT DEFAULT 'Dirección Comercial',
   phone VARCHAR(50) DEFAULT '+34 000 000 000',
   language VARCHAR(2) DEFAULT 'es' CHECK (language IN ('es', 'fr', 'en')),
-  theme VARCHAR(20) DEFAULT 'fashion' CHECK (theme IN ('amber', 'dark', 'blue', 'green', 'fashion')),
+  theme VARCHAR(20) DEFAULT 'amber' CHECK (theme IN ('amber', 'dark', 'blue', 'green', 'fashion')),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -633,7 +633,7 @@ ON CONFLICT DO NOTHING;
 
 -- Ajustes de empresa iniciales
 INSERT INTO public.company_settings (company_name, address, phone, theme, language)
-VALUES ('LIN-Fashion POS', 'Calle Comercio 123', '+34 600 000 000', 'fashion', 'es')
+VALUES ('Linventory', 'Calle Comercio 123', '+34 600 000 000', 'amber', 'es')
 ON CONFLICT DO NOTHING;
 
 -- Permisos iniciales por rol (Role Permissions)

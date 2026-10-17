@@ -76,7 +76,7 @@ export function CompanySettings() {
     try {
       console.log('🏗️ COMPANY SETTINGS: Creating default settings...');
       const defaultData = {
-        company_name: 'El Fakir',
+        company_name: 'Linventory',
         address: 'Calle Principal #123, Ciudad',
         phone: '+34 000 000 000'
       };

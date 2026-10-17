@@ -10,29 +10,29 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Shopping by Lina - Sistema de Gestión',
-        short_name: 'Shopping by Lina',
-        description: 'Sistema de Gestión de Moda y Punto de Venta',
-        theme_color: '#ec4899',
+        name: 'Linventory - Sistema de Gestión',
+        short_name: 'Linventory',
+        description: 'Linventory - Sistema de Gestión de Inventario y Punto de Venta',
+        theme_color: '#f59e0b',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
         orientation: 'portrait',
         icons: [
           {
-            src: '/Shopingbylina.jpg',
+            src: '/icon-192.png',
             sizes: '192x192',
-            type: 'image/jpeg'
+            type: 'image/png'
           },
           {
-            src: '/Shopingbylina.jpg',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/jpeg'
+            type: 'image/png'
           },
           {
-            src: '/Shopingbylina.jpg',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]

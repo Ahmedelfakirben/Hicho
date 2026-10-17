@@ -1,4 +1,4 @@
-# LIN-Fashion - Sistema de Gestión para Tiendas de Ropa (Clothing Store POS)
+# Linventory - Sistema de Gestión de Inventario y POS Retail
 
 Sistema de gestión integral para comercios de ropa (Retail) desarrollado con **React**, **TypeScript**, **Tailwind CSS** y **Supabase**. Diseñado para ser moderno, rápido y fácil de usar, con soporte completo para dos idiomas (Español e Inglés).
 

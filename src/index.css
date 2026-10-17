@@ -310,13 +310,13 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Gradientes elegantes */
+  /* Gradientes elegantes (Naranja / Amber) */
   .gradient-primary {
-    background: linear-gradient(135deg, #f9a8d4 0%, #d8b4fe 100%);
+    background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
   }
 
   .gradient-primary-hover {
-    background: linear-gradient(135deg, #f472b6 0%, #c084fc 100%);
+    background: linear-gradient(135deg, #d97706 0%, #c2410c 100%);
   }
 
   /* Sombras modernas */
@@ -330,14 +330,14 @@
 
   /* Efectos de texto */
   .text-gradient {
-    background: linear-gradient(135deg, #f9a8d4 0%, #d8b4fe 100%);
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-vibrant {
-    background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+    background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
