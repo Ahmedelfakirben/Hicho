@@ -37,22 +37,33 @@ function AppContent() {
 
   // Sistema de control de versiones para forzar limpieza de caché en despliegue
   useEffect(() => {
-    const APP_VERSION = '1.1.9'; // Incrementar esto para forzar recarga en clientes
+    const APP_VERSION = '1.2.0'; // Incrementar esto para forzar recarga en clientes
     const savedVersion = localStorage.getItem('app_version');
     
     if (savedVersion !== APP_VERSION) {
       console.log(`Nueva versión detectada: ${APP_VERSION}. Limpiando caché...`);
       localStorage.setItem('app_version', APP_VERSION);
       
-      // Si ya había una versión anterior, forzamos recarga dura
+      // Si ya había una versión anterior, forzamos recarga dura y limpieza de caché
       if (savedVersion) {
-        // Limpiar cachés del navegador si es posible
-        if ('caches' in window) {
-          caches.keys().then(names => {
-            names.forEach(name => caches.delete(name));
-          });
-        }
-        window.location.reload();
+        const cleanAndReload = async () => {
+          try {
+            if ('caches' in window) {
+              const names = await caches.keys();
+              await Promise.all(names.map(name => caches.delete(name)));
+            }
+            if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(registrations.map(reg => reg.unregister()));
+            }
+          } catch (e) {
+            console.error('Error al limpiar caché:', e);
+          } finally {
+            window.location.reload();
+          }
+        };
+
+        cleanAndReload();
       }
     }
   }, []);
