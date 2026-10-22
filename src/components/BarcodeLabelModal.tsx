@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import JsBarcode from 'jsbarcode';
-import { X, Printer, Plus, Minus, Sparkles, Tag, Check, RefreshCw } from 'lucide-react';
+import { X, Printer, Plus, Minus, Tag } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -40,13 +40,123 @@ interface BarcodeLabelModalProps {
   initialSelectedSizeId?: string;
 }
 
+export type LabelSizePreset = '50x25' | '50x30' | '40x25' | '60x40' | '30x20' | 'custom';
+
+export function getLabelDimensions(
+  sizeKey: LabelSizePreset,
+  customW: number,
+  customH: number
+) {
+  switch (sizeKey) {
+    case '50x25':
+      return {
+        width: '50mm',
+        height: '25mm',
+        numericWidth: 50,
+        numericHeight: 25,
+        padding: '1mm 2mm',
+        companySize: '7.5px',
+        sizeBadgeSize: '8px',
+        nameSize: '10px',
+        priceSize: '12px',
+        barcodeHeight: 22,
+        barcodeWidth: 1.25,
+        barcodeFontSize: 9,
+        barcodeMargin: 1,
+      };
+    case '50x30':
+      return {
+        width: '50mm',
+        height: '30mm',
+        numericWidth: 50,
+        numericHeight: 30,
+        padding: '1.5mm 2.5mm',
+        companySize: '8px',
+        sizeBadgeSize: '8.5px',
+        nameSize: '12px',
+        priceSize: '14px',
+        barcodeHeight: 30,
+        barcodeWidth: 1.35,
+        barcodeFontSize: 10,
+        barcodeMargin: 2,
+      };
+    case '40x25':
+      return {
+        width: '40mm',
+        height: '25mm',
+        numericWidth: 40,
+        numericHeight: 25,
+        padding: '1mm 1.5mm',
+        companySize: '7px',
+        sizeBadgeSize: '7.5px',
+        nameSize: '9.5px',
+        priceSize: '11.5px',
+        barcodeHeight: 20,
+        barcodeWidth: 1.15,
+        barcodeFontSize: 8.5,
+        barcodeMargin: 1,
+      };
+    case '60x40':
+      return {
+        width: '60mm',
+        height: '40mm',
+        numericWidth: 60,
+        numericHeight: 40,
+        padding: '2mm 3mm',
+        companySize: '9px',
+        sizeBadgeSize: '10px',
+        nameSize: '14px',
+        priceSize: '16px',
+        barcodeHeight: 42,
+        barcodeWidth: 1.6,
+        barcodeFontSize: 11,
+        barcodeMargin: 2,
+      };
+    case '30x20':
+      return {
+        width: '30mm',
+        height: '20mm',
+        numericWidth: 30,
+        numericHeight: 20,
+        padding: '0.8mm 1mm',
+        companySize: '6.5px',
+        sizeBadgeSize: '7px',
+        nameSize: '8.5px',
+        priceSize: '10px',
+        barcodeHeight: 16,
+        barcodeWidth: 1.0,
+        barcodeFontSize: 7.5,
+        barcodeMargin: 0,
+      };
+    case 'custom': {
+      const w = Math.max(20, Math.min(120, customW || 50));
+      const h = Math.max(15, Math.min(120, customH || 25));
+      const ratio = h / 25;
+      return {
+        width: `${w}mm`,
+        height: `${h}mm`,
+        numericWidth: w,
+        numericHeight: h,
+        padding: `${Math.max(0.8, Math.min(2.5, h * 0.05))}mm ${Math.max(1, Math.min(3, w * 0.05))}mm`,
+        companySize: `${Math.max(6, Math.round(7.5 * ratio * 10) / 10)}px`,
+        sizeBadgeSize: `${Math.max(6.5, Math.round(8 * ratio * 10) / 10)}px`,
+        nameSize: `${Math.max(8, Math.round(10 * ratio * 10) / 10)}px`,
+        priceSize: `${Math.max(9, Math.round(12 * ratio * 10) / 10)}px`,
+        barcodeHeight: Math.max(14, Math.round(22 * ratio)),
+        barcodeWidth: Math.max(1.0, Math.min(1.8, Math.round((w / 50) * 1.25 * 10) / 10)),
+        barcodeFontSize: Math.max(7, Math.round(9 * ratio)),
+        barcodeMargin: h < 22 ? 0 : 1,
+      };
+    }
+  }
+}
+
 export function BarcodeLabelModal({
   isOpen,
   onClose,
   product,
   sizes,
   units = [],
-  onUpdateUnitBarcode,
   initialSelectedUnitId,
   initialSelectedSizeId,
 }: BarcodeLabelModalProps) {
@@ -57,11 +167,68 @@ export function BarcodeLabelModal({
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedPreviewUnitId, setSelectedPreviewUnitId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('Linventory');
-  const [labelSize, setLabelSize] = useState<'standard' | 'small' | 'large'>('standard');
+
+  // Label size preset: Default to 50x25 mm (requested by user/client), persists in localStorage
+  const [labelSize, setLabelSize] = useState<LabelSizePreset>(() => {
+    try {
+      const saved = localStorage.getItem('linventory_barcode_label_size') as LabelSizePreset;
+      if (saved && ['50x25', '50x30', '40x25', '60x40', '30x20', 'custom'].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return '50x25';
+  });
+
+  const [customWidth, setCustomWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('linventory_barcode_label_w');
+      return saved ? parseInt(saved, 10) : 50;
+    } catch {
+      return 50;
+    }
+  });
+
+  const [customHeight, setCustomHeight] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('linventory_barcode_label_h');
+      return saved ? parseInt(saved, 10) : 25;
+    } catch {
+      return 25;
+    }
+  });
+
+  // Content toggles
+  const [showCompany, setShowCompany] = useState<boolean>(true);
+  const [showProductName, setShowProductName] = useState<boolean>(true);
+  const [showSize, setShowSize] = useState<boolean>(true);
+  const [showPrice, setShowPrice] = useState<boolean>(true);
 
   const previewSvgRef = useRef<SVGSVGElement>(null);
 
   const hasIndividualUnits = units && units.length > 0;
+
+  const currentDimensions = getLabelDimensions(labelSize, customWidth, customHeight);
+
+  const handleSelectSize = (newSize: LabelSizePreset) => {
+    setLabelSize(newSize);
+    try {
+      localStorage.setItem('linventory_barcode_label_size', newSize);
+    } catch {}
+  };
+
+  const handleUpdateCustomW = (val: number) => {
+    setCustomWidth(val);
+    try {
+      localStorage.setItem('linventory_barcode_label_w', String(val));
+    } catch {}
+  };
+
+  const handleUpdateCustomH = (val: number) => {
+    setCustomHeight(val);
+    try {
+      localStorage.setItem('linventory_barcode_label_h', String(val));
+    } catch {}
+  };
 
   // Initialize quantities based on units or sizes
   useEffect(() => {
@@ -134,25 +301,31 @@ export function BarcodeLabelModal({
     }
   }
 
-  // Render preview barcode
+  // Render preview barcode whenever barcode or dimensions change
   useEffect(() => {
     if (previewSvgRef.current) {
       try {
         JsBarcode(previewSvgRef.current, currentPreviewBarcode, {
           format: 'CODE128',
-          width: 1.6,
-          height: 38,
+          width: currentDimensions.barcodeWidth,
+          height: currentDimensions.barcodeHeight,
           displayValue: true,
-          fontSize: 12,
+          fontSize: currentDimensions.barcodeFontSize,
           font: 'monospace',
-          margin: 4,
+          margin: currentDimensions.barcodeMargin,
           lineColor: '#000000',
         });
       } catch (err) {
         console.error('Error rendering barcode in preview:', err);
       }
     }
-  }, [currentPreviewBarcode]);
+  }, [
+    currentPreviewBarcode,
+    currentDimensions.barcodeWidth,
+    currentDimensions.barcodeHeight,
+    currentDimensions.barcodeFontSize,
+    currentDimensions.barcodeMargin,
+  ]);
 
   // Generate unique barcode utility
   const generateBarcode = () => {
@@ -161,22 +334,28 @@ export function BarcodeLabelModal({
     return `20${timePart}${randomPart}`;
   };
 
-  // Generate SVG string for printing
-  const getBarcodeSvgString = (code: string): string => {
+  // Generate SVG string for printing adapted to label dimensions
+  const getBarcodeSvgString = (
+    code: string,
+    barHeight: number,
+    barWidth: number,
+    barFontSize: number,
+    barMargin: number
+  ): string => {
     try {
       const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       JsBarcode(tempSvg, code, {
         format: 'CODE128',
-        width: 1.5,
-        height: 34,
+        width: barWidth,
+        height: barHeight,
         displayValue: true,
-        fontSize: 10,
+        fontSize: barFontSize,
         font: 'monospace',
-        margin: 2,
+        margin: barMargin,
       });
       return new XMLSerializer().serializeToString(tempSvg);
     } catch {
-      return `<div style="font-family:monospace;font-size:12px;padding:6px;border:1px dashed #999;">${code}</div>`;
+      return `<div style="font-family:monospace;font-size:10px;padding:2px;border:1px dashed #999;">${code}</div>`;
     }
   };
 
@@ -188,6 +367,8 @@ export function BarcodeLabelModal({
     }
 
     const priceFormatted = formatCurrency(effectivePrice);
+    const dim = currentDimensions;
+
     const labelsToPrint: Array<{
       name: string;
       size_name: string;
@@ -202,7 +383,13 @@ export function BarcodeLabelModal({
         const count = quantities[u.id] || 0;
         if (count > 0) {
           const code = u.barcode || generateBarcode();
-          const svgStr = getBarcodeSvgString(code);
+          const svgStr = getBarcodeSvgString(
+            code,
+            dim.barcodeHeight,
+            dim.barcodeWidth,
+            dim.barcodeFontSize,
+            dim.barcodeMargin
+          );
 
           for (let i = 0; i < count; i++) {
             labelsToPrint.push({
@@ -220,9 +407,14 @@ export function BarcodeLabelModal({
         const count = quantities[s.id] || 0;
         if (count > 0) {
           for (let i = 0; i < count; i++) {
-            // If more than 1 unit, generate distinct codes so every unit has its own barcode
             const code = (i === 0 && s.barcode) ? s.barcode : generateBarcode();
-            const svgStr = getBarcodeSvgString(code);
+            const svgStr = getBarcodeSvgString(
+              code,
+              dim.barcodeHeight,
+              dim.barcodeWidth,
+              dim.barcodeFontSize,
+              dim.barcodeMargin
+            );
 
             labelsToPrint.push({
               name: product.name,
@@ -252,25 +444,23 @@ export function BarcodeLabelModal({
       return;
     }
 
-    const dim = labelSize === 'small'
-      ? { width: '40mm', height: '25mm', fontSize: '9px', nameSize: '11px', priceSize: '12px' }
-      : labelSize === 'large'
-      ? { width: '60mm', height: '40mm', fontSize: '11px', nameSize: '14px', priceSize: '16px' }
-      : { width: '50mm', height: '30mm', fontSize: '10px', nameSize: '12px', priceSize: '14px' };
-
     const labelsHtml = labelsToPrint.map((lbl) => `
       <div class="label-card">
-        <div class="header">
-          <span class="company-name">${companyName}</span>
-          <span class="size-badge">TALLA: ${lbl.size_name}</span>
-        </div>
-        <div class="product-name">${lbl.name}</div>
+        ${(showCompany || (showSize && lbl.size_name)) ? `
+          <div class="header">
+            ${showCompany ? `<span class="company-name">${companyName}</span>` : '<span></span>'}
+            ${showSize && lbl.size_name ? `<span class="size-badge">TALLA: ${lbl.size_name}</span>` : ''}
+          </div>
+        ` : ''}
+        ${showProductName ? `<div class="product-name">${lbl.name}</div>` : ''}
         <div class="barcode-container">
           ${lbl.barcodeSvg}
         </div>
-        <div class="footer">
-          <span class="price">${lbl.price}</span>
-        </div>
+        ${showPrice ? `
+          <div class="footer">
+            <span class="price">${lbl.price}</span>
+          </div>
+        ` : ''}
       </div>
     `).join('');
 
@@ -280,7 +470,7 @@ export function BarcodeLabelModal({
       <html>
         <head>
           <meta charset="utf-8">
-          <title>${product.name} - Etiquetas</title>
+          <title>${product.name} - Etiquetas (${dim.width}x${dim.height})</title>
           <style>
             @page {
               size: ${dim.width} ${dim.height};
@@ -291,8 +481,10 @@ export function BarcodeLabelModal({
               margin: 0;
               padding: 0;
             }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            html, body {
+              width: ${dim.width};
+              margin: 0;
+              padding: 0;
               background: #fff;
               color: #000;
               -webkit-print-color-adjust: exact;
@@ -301,7 +493,9 @@ export function BarcodeLabelModal({
             .label-card {
               width: ${dim.width};
               height: ${dim.height};
-              padding: 1.5mm 2.5mm;
+              max-height: ${dim.height};
+              box-sizing: border-box;
+              padding: ${dim.padding};
               display: flex;
               flex-direction: column;
               justify-content: space-between;
@@ -309,31 +503,42 @@ export function BarcodeLabelModal({
               text-align: center;
               page-break-after: always;
               break-after: page;
+              page-break-inside: avoid;
+              break-inside: avoid;
               overflow: hidden;
+            }
+            .label-card:last-child {
+              page-break-after: auto;
+              break-after: auto;
             }
             .header {
               width: 100%;
               display: flex;
               justify-content: space-between;
               align-items: center;
-              font-size: ${dim.fontSize};
               border-bottom: 0.5px solid #ddd;
               padding-bottom: 1px;
+              line-height: 1.1;
             }
             .company-name {
-              font-weight: 600;
+              font-weight: 700;
               text-transform: uppercase;
-              letter-spacing: 0.5px;
-              font-size: 8px;
+              letter-spacing: 0.3px;
+              font-size: ${dim.companySize};
               color: #333;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 65%;
             }
             .size-badge {
               font-weight: 800;
               background: #000;
               color: #fff;
-              padding: 1px 4px;
+              padding: 1px 3px;
               border-radius: 2px;
-              font-size: 8.5px;
+              font-size: ${dim.sizeBadgeSize};
+              white-space: nowrap;
             }
             .product-name {
               font-size: ${dim.nameSize};
@@ -342,18 +547,23 @@ export function BarcodeLabelModal({
               overflow: hidden;
               text-overflow: ellipsis;
               width: 100%;
-              margin-top: 1px;
+              line-height: 1.15;
+              margin-top: 0.5px;
             }
             .barcode-container {
               width: 100%;
               display: flex;
               justify-content: center;
               align-items: center;
-              margin: 1px 0;
+              margin: 0.5px 0;
+              flex: 1;
+              overflow: hidden;
             }
             .barcode-container svg {
-              max-width: 95%;
+              max-width: 98%;
+              max-height: 100%;
               height: auto;
+              display: block;
             }
             .footer {
               width: 100%;
@@ -361,7 +571,8 @@ export function BarcodeLabelModal({
               justify-content: center;
               align-items: center;
               border-top: 0.5px solid #eee;
-              padding-top: 1px;
+              padding-top: 0.5px;
+              line-height: 1.1;
             }
             .price {
               font-size: ${dim.priceSize};
@@ -388,7 +599,7 @@ export function BarcodeLabelModal({
       }, 2000);
     }, 400);
 
-    toast.success(t(`Imprimiendo ${totalLabels} etiquetas con códigos individuales...`));
+    toast.success(t(`Imprimiendo ${totalLabels} etiquetas (${dim.width} × ${dim.height})...`));
   };
 
   if (!isOpen) return null;
@@ -553,47 +764,171 @@ export function BarcodeLabelModal({
             </div>
 
             {/* Label format selector */}
-            <div className="pt-2 border-t border-gray-100">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                {t('Tamaño de Etiqueta')}
-              </label>
+            <div className="pt-3 border-t border-gray-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  {t('Tamaño de Etiqueta')}
+                </label>
+                <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
+                  {currentDimensions.width} × {currentDimensions.height}
+                </span>
+              </div>
+
               <div className="grid grid-cols-3 gap-2">
+                {/* 50 x 25 mm - Recommended by customer */}
                 <button
                   type="button"
-                  onClick={() => setLabelSize('small')}
-                  className={`py-2 px-3 rounded-lg border text-xs font-medium text-center transition-all ${
-                    labelSize === 'small'
-                      ? 'border-amber-500 bg-amber-50 text-amber-800 font-bold'
+                  onClick={() => handleSelectSize('50x25')}
+                  className={`py-2 px-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
+                    labelSize === '50x25'
+                      ? 'border-amber-500 bg-amber-50/90 text-amber-900 font-bold ring-2 ring-amber-400/40 shadow-xs'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  40 x 25 mm
-                  <span className="block text-[10px] text-gray-400 font-normal">Pequeña</span>
+                  <span className="block font-bold">50 x 25 mm</span>
+                  <span className="block text-[10px] text-amber-700 font-medium">5 × 2.5 cm (Ideal)</span>
                 </button>
+
+                {/* 50 x 30 mm */}
                 <button
                   type="button"
-                  onClick={() => setLabelSize('standard')}
-                  className={`py-2 px-3 rounded-lg border text-xs font-medium text-center transition-all ${
-                    labelSize === 'standard'
-                      ? 'border-amber-500 bg-amber-50 text-amber-800 font-bold'
+                  onClick={() => handleSelectSize('50x30')}
+                  className={`py-2 px-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
+                    labelSize === '50x30'
+                      ? 'border-amber-500 bg-amber-50/90 text-amber-900 font-bold ring-2 ring-amber-400/40 shadow-xs'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  50 x 30 mm
+                  <span className="block font-bold">50 x 30 mm</span>
                   <span className="block text-[10px] text-gray-400 font-normal">Estándar Ropa</span>
                 </button>
+
+                {/* 40 x 25 mm */}
                 <button
                   type="button"
-                  onClick={() => setLabelSize('large')}
-                  className={`py-2 px-3 rounded-lg border text-xs font-medium text-center transition-all ${
-                    labelSize === 'large'
-                      ? 'border-amber-500 bg-amber-50 text-amber-800 font-bold'
+                  onClick={() => handleSelectSize('40x25')}
+                  className={`py-2 px-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
+                    labelSize === '40x25'
+                      ? 'border-amber-500 bg-amber-50/90 text-amber-900 font-bold ring-2 ring-amber-400/40 shadow-xs'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  60 x 40 mm
+                  <span className="block font-bold">40 x 25 mm</span>
+                  <span className="block text-[10px] text-gray-400 font-normal">Pequeña</span>
+                </button>
+
+                {/* 60 x 40 mm */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectSize('60x40')}
+                  className={`py-2 px-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
+                    labelSize === '60x40'
+                      ? 'border-amber-500 bg-amber-50/90 text-amber-900 font-bold ring-2 ring-amber-400/40 shadow-xs'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="block font-bold">60 x 40 mm</span>
                   <span className="block text-[10px] text-gray-400 font-normal">Grande</span>
                 </button>
+
+                {/* 30 x 20 mm */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectSize('30x20')}
+                  className={`py-2 px-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
+                    labelSize === '30x20'
+                      ? 'border-amber-500 bg-amber-50/90 text-amber-900 font-bold ring-2 ring-amber-400/40 shadow-xs'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="block font-bold">30 x 20 mm</span>
+                  <span className="block text-[10px] text-gray-400 font-normal">Mini</span>
+                </button>
+
+                {/* Custom dimensions */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectSize('custom')}
+                  className={`py-2 px-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
+                    labelSize === 'custom'
+                      ? 'border-amber-500 bg-amber-50/90 text-amber-900 font-bold ring-2 ring-amber-400/40 shadow-xs'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="block font-bold">{t('Personalizado')}</span>
+                  <span className="block text-[10px] text-gray-400 font-normal">{customWidth} × {customHeight} mm</span>
+                </button>
+              </div>
+
+              {/* Custom dimensions inputs if 'custom' selected */}
+              {labelSize === 'custom' && (
+                <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex-1 flex items-center gap-1.5">
+                    <label className="text-xs text-gray-600 font-semibold">{t('Ancho')}:</label>
+                    <input
+                      type="number"
+                      min="20"
+                      max="120"
+                      value={customWidth}
+                      onChange={(e) => handleUpdateCustomW(parseInt(e.target.value) || 50)}
+                      className="w-16 px-2 py-1 text-xs font-bold border border-gray-300 rounded-md bg-white text-center focus:ring-1 focus:ring-amber-500"
+                    />
+                    <span className="text-xs text-gray-400">mm</span>
+                  </div>
+                  <div className="flex-1 flex items-center gap-1.5">
+                    <label className="text-xs text-gray-600 font-semibold">{t('Alto')}:</label>
+                    <input
+                      type="number"
+                      min="15"
+                      max="120"
+                      value={customHeight}
+                      onChange={(e) => handleUpdateCustomH(parseInt(e.target.value) || 25)}
+                      className="w-16 px-2 py-1 text-xs font-bold border border-gray-300 rounded-md bg-white text-center focus:ring-1 focus:ring-amber-500"
+                    />
+                    <span className="text-xs text-gray-400">mm</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Optional elements toggle checkboxes */}
+              <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">{t('Incluir')}:</span>
+                <label className="flex items-center gap-1 cursor-pointer hover:text-gray-900 select-none">
+                  <input
+                    type="checkbox"
+                    checked={showCompany}
+                    onChange={(e) => setShowCompany(e.target.checked)}
+                    className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
+                  />
+                  <span>{t('Empresa')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer hover:text-gray-900 select-none">
+                  <input
+                    type="checkbox"
+                    checked={showProductName}
+                    onChange={(e) => setShowProductName(e.target.checked)}
+                    className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
+                  />
+                  <span>{t('Nombre')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer hover:text-gray-900 select-none">
+                  <input
+                    type="checkbox"
+                    checked={showSize}
+                    onChange={(e) => setShowSize(e.target.checked)}
+                    className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
+                  />
+                  <span>{t('Talla')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer hover:text-gray-900 select-none">
+                  <input
+                    type="checkbox"
+                    checked={showPrice}
+                    onChange={(e) => setShowPrice(e.target.checked)}
+                    className="rounded text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
+                  />
+                  <span>{t('Precio')}</span>
+                </label>
               </div>
             </div>
           </div>
@@ -607,47 +942,79 @@ export function BarcodeLabelModal({
                   {t('Vista Previa de la Etiqueta')}
                 </h4>
                 <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-gray-200 text-gray-600 font-semibold">
-                  1:1 Real
+                  {currentDimensions.width} × {currentDimensions.height}
                 </span>
               </div>
 
-              {/* Physical Label simulation box */}
-              <div className="bg-white rounded-lg p-3 shadow-md border-2 border-dashed border-gray-300 flex flex-col items-center justify-between mx-auto max-w-[220px] aspect-[5/3] transition-all">
+              {/* Physical Label simulation box with proportional aspect ratio */}
+              <div
+                className="bg-white rounded-lg p-2.5 shadow-md border-2 border-dashed border-gray-300 flex flex-col items-center justify-between mx-auto transition-all"
+                style={{
+                  width: '100%',
+                  maxWidth: `${Math.min(240, Math.max(160, currentDimensions.numericWidth * 4.4))}px`,
+                  aspectRatio: `${currentDimensions.numericWidth} / ${currentDimensions.numericHeight}`,
+                  minHeight: '110px',
+                }}
+              >
                 {/* Header */}
-                <div className="w-full flex items-center justify-between border-b border-gray-200 pb-1">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-gray-700 truncate max-w-[120px]">
-                    {companyName}
-                  </span>
-                  <span className="text-[9px] font-black bg-gray-900 text-white px-1.5 py-0.2 rounded">
-                    TALLA: {currentPreviewSizeName}
-                  </span>
-                </div>
+                {(showCompany || (showSize && currentPreviewSizeName)) && (
+                  <div className="w-full flex items-center justify-between border-b border-gray-200 pb-0.5">
+                    {showCompany ? (
+                      <span className="text-[9px] font-extrabold uppercase tracking-wider text-gray-700 truncate max-w-[120px]">
+                        {companyName}
+                      </span>
+                    ) : <span />}
+                    {showSize && currentPreviewSizeName && (
+                      <span className="text-[9px] font-black bg-gray-900 text-white px-1.5 py-0.2 rounded">
+                        TALLA: {currentPreviewSizeName}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Product Name */}
-                <div className="w-full font-bold text-xs text-gray-900 text-center truncate my-1">
-                  {product.name}
-                </div>
+                {showProductName && (
+                  <div className="w-full font-bold text-xs text-gray-900 text-center truncate my-0.5">
+                    {product.name}
+                  </div>
+                )}
 
                 {/* Barcode Render */}
-                <div className="w-full flex justify-center items-center my-0.5 overflow-hidden">
+                <div className="w-full flex justify-center items-center my-0.5 overflow-hidden flex-1">
                   <svg ref={previewSvgRef} className="max-w-full h-auto" />
                 </div>
 
                 {/* Footer / Price */}
-                <div className="w-full flex items-center justify-center border-t border-gray-100 pt-1">
-                  <span className="text-base font-black text-gray-900 tracking-tight">
-                    {formatCurrency(effectivePrice)}
-                  </span>
-                </div>
+                {showPrice && (
+                  <div className="w-full flex items-center justify-center border-t border-gray-100 pt-0.5">
+                    <span className="text-sm font-black text-gray-900 tracking-tight">
+                      {formatCurrency(effectivePrice)}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <p className="text-[11px] text-gray-400 text-center mt-3">
+              <p className="text-[11px] text-gray-400 text-center mt-2.5">
                 {t('Cada etiqueta saldrá con su código de barra único para identificar individualmente cada prenda física.')}
               </p>
+
+              {/* Thermal Printer tip */}
+              <div className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 mt-3 space-y-1">
+                <div className="font-bold flex items-center gap-1 text-amber-950">
+                  <span>💡</span> {t('Ajuste para Impresora Térmica:')}
+                </div>
+                <div className="text-[10px] text-amber-900/90 leading-tight">
+                  {t('En la ventana de impresión del navegador:')}
+                  <ul className="list-disc list-inside mt-0.5 space-y-0.5">
+                    <li>{t('Márgenes:')} <strong>{t('Ninguno (None)')}</strong></li>
+                    <li>{t('Desmarcar:')} <strong>{t('Encabezados y pies de página')}</strong></li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             {/* Summary card */}
-            <div className="bg-amber-100/60 rounded-xl p-3 border border-amber-200/80 mt-4">
+            <div className="bg-amber-100/60 rounded-xl p-3 border border-amber-200/80 mt-3">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-amber-900 font-medium">{t('Total etiquetas a imprimir:')}</span>
                 <span className="text-base font-extrabold text-amber-950 px-2.5 py-0.5 bg-amber-200/80 rounded-md">
